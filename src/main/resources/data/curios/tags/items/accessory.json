@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "mhweaponsmod:power_charm",
+    "mhweaponsmod:defense_charm",
+    "mhweaponsmod:element_charm",
+    "mhweaponsmod:status_charm"
+  ]
+}

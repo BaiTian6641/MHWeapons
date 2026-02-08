@@ -1,0 +1,11 @@
+{
+  "size": 1,
+  "tier": 1,
+  "tier_multiplier": 1.0,
+  "rarity": "common",
+  "category": "weapon",
+  "attributes": [
+    { "attribute": "mhweaponsmod:paralysis_buildup", "amount": 6.0, "operation": "add", "name": "mhweaponsmod.paralyzer_jewel" }
+  ],
+  "tags": ["status", "paralysis", "wilds"]
+}

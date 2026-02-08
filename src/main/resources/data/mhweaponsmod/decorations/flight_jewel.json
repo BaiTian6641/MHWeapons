@@ -1,0 +1,19 @@
+{
+  "size": 1,
+  "tier": 1,
+  "tier_multiplier": 1.0,
+  "rarity": "common",
+  "category": "weapon",
+  "attributes": [
+    {
+      "attribute": "minecraft:generic.attack_damage",
+      "amount": 0.5,
+      "operation": "add",
+      "name": "mhweaponsmod.flight_jewel"
+    }
+  ],
+  "tags": [
+    "generic",
+    "weapon"
+  ]
+}

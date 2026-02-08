@@ -1,0 +1,11 @@
+{
+  "size": 2,
+  "tier": 2,
+  "tier_multiplier": 1.0,
+  "rarity": "uncommon",
+  "category": "armor",
+  "attributes": [
+    { "attribute": "minecraft:generic.max_health", "amount": 2.0, "operation": "add", "name": "mhweaponsmod.vitality_jewel" }
+  ],
+  "tags": ["health", "armor", "wilds"]
+}

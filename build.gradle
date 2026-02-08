@@ -1,0 +1,123 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven { url = 'https://maven.minecraftforge.net' }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:6.0.+'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'java'
+apply plugin: 'maven-publish'
+
+group = 'org.example'
+version = '1.0.0'
+archivesBaseName = 'mhweaponsmod'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.minecraftforge.net' }
+
+    // Better Combat (GitHub): https://github.com/ZsoltMolnarrr/BetterCombat
+    // Prefer Modrinth Maven repository (official builds). Fall back to JitPack if needed.
+    maven { url = 'https://api.modrinth.com/maven' }
+    maven { url = 'https://jitpack.io' }
+
+    // PlayerAnimator (KosmX Maven)
+    maven { url = 'https://maven.kosmx.dev/' }
+    // Cloth Config (Shedaniel Maven)
+    maven { url = 'https://maven.shedaniel.me/' }
+    // GeckoLib (Cloudsmith Maven)
+    maven { url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
+
+    // Apothic Attributes (Placebo)
+    maven { url "https://maven.shadowsoffire.dev/releases" }
+    // Curios API
+    maven { url "https://maven.theillusivec4.top/" }
+}  
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.20.1-47.4.16'
+    // Make deobfuscated Forge classes available to the IDE/compiler at compile time
+    compileOnly fg.deobf('net.minecraftforge:forge:1.20.1-47.4.16')
+
+    // Better Combat (Forge) - REQUIRED for this mod (implements Monster Hunter-style weapons):
+    // Using Modrinth Maven coordinates; implementation provides compile + runtime availability in dev.
+    implementation fg.deobf('maven.modrinth:better-combat:1.9.0+1.20.1-forge')
+
+    // Companion libraries required by Better Combat (add using their official repos):
+    // Cloth Config (Forge)
+    // See: https://shedaniel.gitbook.io/cloth-config/setup-cloth-config/setup-with-forge
+    implementation fg.deobf('me.shedaniel.cloth:cloth-config-forge:11.1.136')
+
+    // PlayerAnimator (KosmX) - Forge variant
+    // See: https://github.com/KosmX/minecraftPlayerAnimator#include-in-your-dev-environment
+    implementation fg.deobf('dev.kosmx.player-anim:player-animation-lib-forge:1.0.2-rc1+1.20')
+
+    // MixinExtras (available on Maven Central)
+    compileOnly(annotationProcessor("io.github.llamalad7:mixinextras-common:0.5.3"))
+    implementation(jarJar("io.github.llamalad7:mixinextras-forge:0.5.3")) {
+        jarJar.ranged(it, "[0.5.3,)")
+    }
+
+    // GeckoLib (animations + model support for weapon visuals)
+    implementation fg.deobf('software.bernie.geckolib:geckolib-forge-1.20.1:4.8.3')
+
+    // Apothic Attributes (AttributesLib) & Placebo
+    implementation fg.deobf("dev.shadowsoffire:Placebo:1.20.1-8.6.3")
+    implementation fg.deobf("dev.shadowsoffire:ApothicAttributes:1.20.1-1.3.7")
+
+    // Curios API
+    implementation fg.deobf("top.theillusivec4.curios:curios-forge:5.14.1+1.20.1")
+
+    // If you want to also include bendy-lib for richer animations (optional):
+    // runtimeOnly fg.deobf('io.github.kosmx.bendy-lib:bendy-lib-forge:<VERSION>')
+}  
+
+minecraft {
+    // Use official Mojang mappings for 1.20.1
+    mappings channel: 'official', version: '1.20.1'
+
+    // Provide simple run configurations for IDE/dev environment
+    runs {
+        client {
+            workingDirectory project.file('run')
+            // PlayerAnimator requires remapping of mixin refmap in dev runs
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+            property 'mixin.config', 'mhweaponsmod.mixins.json'
+            property 'mixin.debug', 'true'
+            property 'mixin.debug.verbose', 'true'
+            property 'mixin.debug.export', 'true'
+        }
+        server {
+            workingDirectory project.file('run')
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+            property 'mixin.config', 'mhweaponsmod.mixins.json'
+            property 'mixin.debug', 'true'
+            property 'mixin.debug.verbose', 'true'
+            property 'mixin.debug.export', 'true'
+        }
+    }
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    manifest {
+        attributes([
+                "MixinConfigs": "mhweaponsmod.mixins.json"
+        ])
+    }
+}

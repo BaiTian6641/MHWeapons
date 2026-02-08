@@ -1,0 +1,13 @@
+{
+  "allowed_slots": ["charm"],
+  "unique": true,
+  "unique_group": "status_charm",
+  "max_equipped": 1,
+  "max_group": 1,
+  "attributes": [
+    { "attribute": "mhweaponsmod:poison_buildup", "amount": 10.0, "operation": "add", "name": "mhweaponsmod.status_charm_poison" },
+    { "attribute": "mhweaponsmod:paralysis_buildup", "amount": 10.0, "operation": "add", "name": "mhweaponsmod.status_charm_paralysis" },
+    { "attribute": "mhweaponsmod:sleep_buildup", "amount": 10.0, "operation": "add", "name": "mhweaponsmod.status_charm_sleep" },
+    { "attribute": "mhweaponsmod:blast_buildup", "amount": 10.0, "operation": "add", "name": "mhweaponsmod.status_charm_blast" }
+  ]
+}

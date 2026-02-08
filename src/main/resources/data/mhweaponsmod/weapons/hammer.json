@@ -1,0 +1,23 @@
+{
+  "id": "hammer",
+  "category": "hammer",
+  "comboWindowTicks": 12,
+  "comboWindowBufferTicks": 12,
+  "chargeMaxTicks": 40,
+  "baseDamage": 7.0,
+  "motionValues": {
+    "basic_attack": 1.0,
+    "charge_lv1": 1.2,
+    "charge_lv2": 1.5,
+    "charge_lv3": 1.8,
+    "golf_swing": 1.6,
+    "power_charge": 1.1
+  },
+  "animationSeries": {
+    "light": [
+      "bettercombat:two_handed_slash_horizontal_right",
+      "bettercombat:two_handed_slash_horizontal_left",
+      "bettercombat:two_handed_slash_vertical_right"
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+mixins=["mhweaponsmod.mixins.json"]
+
+[[mods]]
+modId="mhweaponsmod"
+version="1.0.0"
+displayName="MH Weapons Mod"
+description='''Adds Monster Hunter-inspired weapons and integrates with Better Combat for enhanced animation-driven combat.'''
+
+[[mixins]]
+config="mhweaponsmod.mixins.json"
+
+[[dependencies.mhweaponsmod]]
+# Better Combat will be used to handle comprehensive attack/animation systems.
+# Assumption: Better Combat's mod id is `bettercombat`. If the actual mod id differs, update this value.
+modId="bettercombat"
+mandatory=true
+versionRange="[1.8,)"
+ordering="AFTER"
+side="BOTH"

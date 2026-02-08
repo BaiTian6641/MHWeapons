@@ -1,0 +1,11 @@
+{
+  "size": 2,
+  "tier": 2,
+  "tier_multiplier": 1.0,
+  "rarity": "uncommon",
+  "category": "weapon",
+  "attributes": [
+    { "attribute": "minecraft:generic.attack_damage", "amount": 1.0, "operation": "add", "name": "mhweaponsmod.attack_jewel" }
+  ],
+  "tags": ["offense", "physical"]
+}

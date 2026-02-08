@@ -1,0 +1,19 @@
+{
+  "size": 1,
+  "tier": 2,
+  "tier_multiplier": 1.0,
+  "rarity": "common",
+  "category": "weapon",
+  "attributes": [
+    {
+      "attribute": "minecraft:generic.attack_damage",
+      "amount": 0.75,
+      "operation": "add",
+      "name": "mhweaponsmod.trueshot_jewel"
+    }
+  ],
+  "tags": [
+    "generic",
+    "weapon"
+  ]
+}

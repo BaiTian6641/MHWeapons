@@ -1,0 +1,39 @@
+{
+  "id": "tonfa",
+  "category": "tonfa",
+  "comboWindowTicks": 12,
+  "comboStepMinTicks": 6,
+  "comboActionTicks": 12,
+  "comboWindowBufferTicks": 12,
+  "chargeMaxTicks": 40,
+  "baseDamage": 4.0,
+  "motionValues": {
+    "basic_attack": 0.9,
+    "tonfa_long": 1.0,
+    "tonfa_short": 1.0,
+    "tonfa_long_1": 0.95,
+    "tonfa_long_2": 1.05,
+    "tonfa_long_3": 1.2,
+    "tonfa_long_sweep": 1.0,
+    "tonfa_long_ex": 1.3,
+    "tonfa_short_rise": 1.0,
+    "tonfa_short_flurry": 1.15,
+    "tonfa_short_1": 1.05,
+    "tonfa_short_2": 1.1,
+    "tonfa_short_3": 1.25,
+    "tonfa_short_ex": 1.3,
+    "tonfa_air_slash": 1.15,
+    "tonfa_dive": 1.35,
+    "tonfa_hover": 0.7,
+    "tonfa_dash": 1.1,
+    "tonfa_charge": 1.5,
+    "tonfa_drill": 1.4
+  },
+  "animationSeries": {
+    "light": [
+      "bettercombat:dual_handed_slash_uncross",
+      "bettercombat:dual_handed_stab",
+      "bettercombat:dual_handed_slash_cross"
+    ]
+  }
+}

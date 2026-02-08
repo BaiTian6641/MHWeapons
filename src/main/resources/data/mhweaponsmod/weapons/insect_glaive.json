@@ -1,0 +1,35 @@
+{
+  "id": "insect_glaive",
+  "category": "insect_glaive",
+  "comboWindowTicks": 12,
+  "comboWindowBufferTicks": 12,
+  "chargeMaxTicks": 40,
+  "baseDamage": 5.0,
+  "motionValues": {
+    "basic_attack": 1.0,
+    "rising_slash": 1.0,
+    "reaping_slash": 1.05,
+    "double_slash": 1.1,
+    "overhead_smash": 1.25,
+    "wide_sweep": 0.95,
+    "aerial_advancing_slash": 1.15,
+    "aerial_slash": 1.2,
+    "vault": 0.8,
+    "extract_red": 1.0,
+    "extract_white": 1.0,
+    "extract_orange": 1.0
+  },
+  "animationSeries": {
+    "light": [
+      "bettercombat:two_handed_slash_vertical_right",
+      "bettercombat:two_handed_slash_horizontal_right",
+      "bettercombat:two_handed_spin"
+    ],
+    "wide_sweep": [
+      "bettercombat:two_handed_slash_horizontal_left"
+    ],
+    "overhead_smash": [
+      "bettercombat:two_handed_slam_heavy"
+    ]
+  }
+}

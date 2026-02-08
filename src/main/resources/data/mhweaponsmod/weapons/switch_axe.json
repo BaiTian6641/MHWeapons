@@ -1,0 +1,38 @@
+{
+  "id": "switch_axe",
+  "category": "switch_axe",
+  "modeAnimation": true,
+  "comboWindowTicks": 12,
+  "comboWindowBufferTicks": 12,
+  "chargeMaxTicks": 0,
+  "baseDamage": 7.0,
+  "motionValues": {
+    "basic_attack": 1.0,
+    "morph": 1.1,
+    "sword_slash": 1.2,
+    "full_release": 1.8,
+    "elemental_discharge": 1.6
+  },
+  "animationSeries": {
+    "light": [
+      "bettercombat:two_handed_slash_horizontal_right",
+      "bettercombat:two_handed_slash_horizontal_left",
+      "bettercombat:two_handed_slash_vertical_right"
+    ],
+    "heavy": [
+      "bettercombat:two_handed_slash_horizontal_right",
+      "bettercombat:two_handed_slash_vertical_left",
+      "bettercombat:two_handed_slam_heavy"
+    ],
+    "light_switch": [
+      "bettercombat:two_handed_slash_horizontal_right",
+      "bettercombat:two_handed_slash_horizontal_left",
+      "bettercombat:two_handed_slash_vertical_right"
+    ],
+    "heavy_switch": [
+      "bettercombat:two_handed_slash_horizontal_right",
+      "bettercombat:two_handed_slash_vertical_left",
+      "bettercombat:two_handed_slam_heavy"
+    ]
+  }
+}

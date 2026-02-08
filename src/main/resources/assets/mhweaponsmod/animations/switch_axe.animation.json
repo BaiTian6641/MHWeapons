@@ -1,0 +1,23 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.mhweaponsmod.switch_axe.idle": {
+      "loop": true,
+      "animation_length": 1.0,
+      "bones": {
+        "root": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "0.5": [0, 2, 0],
+            "1.0": [0, 0, 0]
+          },
+          "position": {
+            "0.0": [0, 0, 0],
+            "0.5": [0, 0.5, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "size": 1,
+  "tier": 1,
+  "tier_multiplier": 1.0,
+  "rarity": "common",
+  "category": "weapon",
+  "attributes": [
+    {
+      "attribute": "mhweaponsmod:status_crit_bonus",
+      "amount": 0.25,
+      "operation": "add",
+      "name": "mhweaponsmod.crit_status_jewel"
+    }
+  ],
+  "tags": [
+    "generic",
+    "weapon"
+  ]
+}

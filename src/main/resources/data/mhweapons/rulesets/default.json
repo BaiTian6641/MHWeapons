@@ -1,0 +1,8 @@
+{
+  "ruleset": "default",
+  "focusMode": true,
+  "woundThreshold": 30.0,
+  "woundMultiplier": 1.2,
+  "woundDurationTicks": 200,
+  "focusStrikeBonus": 0.25
+}

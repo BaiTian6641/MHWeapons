@@ -1,0 +1,19 @@
+{
+  "size": 1,
+  "tier": 1,
+  "tier_multiplier": 1.0,
+  "rarity": "common",
+  "category": "weapon",
+  "attributes": [
+    {
+      "attribute": "mhweaponsmod:sharpness_loss_multiplier",
+      "amount": 0.1,
+      "operation": "add",
+      "name": "mhweaponsmod.grinder_jewel"
+    }
+  ],
+  "tags": [
+    "generic",
+    "weapon"
+  ]
+}

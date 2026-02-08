@@ -1,0 +1,19 @@
+{
+  "size": 1,
+  "tier": 1,
+  "tier_multiplier": 1.0,
+  "rarity": "common",
+  "category": "weapon",
+  "attributes": [
+    {
+      "attribute": "mhweaponsmod:draw_affinity_bonus",
+      "amount": 10.0,
+      "operation": "add",
+      "name": "mhweaponsmod.gambit_jewel"
+    }
+  ],
+  "tags": [
+    "generic",
+    "weapon"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "lance",
+  "category": "lance",
+  "comboWindowTicks": 12,
+  "comboWindowBufferTicks": 12,
+  "chargeMaxTicks": 40,
+  "baseDamage": 5.0,
+  "motionValues": {
+    "basic_attack": 1.0,
+    "charge_thrust": 1.3,
+    "guard_dash": 1.1,
+    "counter_thrust": 1.4
+  },
+  "animationSeries": {
+    "light": [
+      "bettercombat:two_handed_slash_horizontal_right",
+      "bettercombat:two_handed_slash_horizontal_left",
+      "bettercombat:two_handed_slash_vertical_right"
+    ]
+  }
+}

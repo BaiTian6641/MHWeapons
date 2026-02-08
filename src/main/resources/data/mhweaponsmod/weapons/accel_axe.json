@@ -1,0 +1,21 @@
+{
+  "id": "accel_axe",
+  "category": "accel_axe",
+  "comboWindowTicks": 12,
+  "comboWindowBufferTicks": 12,
+  "chargeMaxTicks": 40,
+  "baseDamage": 7.0,
+  "motionValues": {
+    "basic_attack": 1.0,
+    "accel_dash": 1.2,
+    "accel_dash_attack": 1.4,
+    "grand_slam": 1.8
+  },
+  "animationSeries": {
+    "light": [
+      "bettercombat:two_handed_slash_horizontal_right",
+      "bettercombat:two_handed_slash_horizontal_left",
+      "bettercombat:two_handed_slash_vertical_right"
+    ]
+  }
+}

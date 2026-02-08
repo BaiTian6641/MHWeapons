@@ -1,0 +1,35 @@
+{
+  "id": "gunlance",
+  "category": "gunlance",
+  "comboWindowTicks": 35,
+  "comboWindowBufferTicks": 35,
+  "chargeMaxTicks": 40,
+  "baseDamage": 6.0,
+  "motionValues": {
+    "basic_attack": 1.0,
+    "shell": 1.4,
+    "charge_shell": 1.8,
+    "wyrmstake": 1.8,
+    "wyvernfire": 3.2,
+    "quick_reload": 0.7,
+    "burst_fire": 2.0,
+    "reload": 0.6
+  },
+  "animationSeries": {
+    "light": [
+      "bettercombat:two_handed_slash_horizontal_right",
+      "bettercombat:two_handed_slash_horizontal_left",
+      "bettercombat:two_handed_slash_vertical_right"
+    ]
+  },
+  "animationOverrides": {
+    "quick_reload": "bettercombat:two_handed_slash_horizontal_left",
+    "reload": "bettercombat:two_handed_slam",
+    "wyvernfire": "bettercombat:two_handed_slam_heavy",
+    "wyrmstake": "bettercombat:two_handed_stab_right"
+  },
+  "animationTiming": {
+    "length": 20.0,
+    "upswing": 0.3
+  }
+}

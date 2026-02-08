@@ -1,0 +1,12 @@
+{
+  "size": 2,
+  "tier": 2,
+  "tier_multiplier": 1.0,
+  "rarity": "uncommon",
+  "category": "armor",
+  "attributes": [
+    { "attribute": "mhweaponsmod:dodge_distance_bonus", "amount": 0.15, "operation": "add", "name": "mhweaponsmod.evasion_jewel.distance" },
+    { "attribute": "minecraft:generic.movement_speed", "amount": 0.03, "operation": "multiply_total", "name": "mhweaponsmod.evasion_jewel" }
+  ],
+  "tags": ["mobility", "armor", "wilds"]
+}

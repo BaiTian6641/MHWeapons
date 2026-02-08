@@ -1,0 +1,19 @@
+{
+  "size": 1,
+  "tier": 1,
+  "tier_multiplier": 1.0,
+  "rarity": "common",
+  "category": "armor",
+  "attributes": [
+    {
+      "attribute": "mhweaponsmod:stamina_regen_bonus",
+      "amount": 0.25,
+      "operation": "add",
+      "name": "mhweaponsmod.hungerless_jewel"
+    }
+  ],
+  "tags": [
+    "generic",
+    "armor"
+  ]
+}

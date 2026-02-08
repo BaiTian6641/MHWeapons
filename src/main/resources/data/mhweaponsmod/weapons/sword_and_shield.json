@@ -1,0 +1,21 @@
+{
+  "id": "sword_and_shield",
+  "category": "sword_and_shield",
+  "comboWindowTicks": 12,
+  "comboWindowBufferTicks": 12,
+  "chargeMaxTicks": 40,
+  "baseDamage": 5.0,
+  "motionValues": {
+    "basic_attack": 1.0,
+    "backstep": 1.0,
+    "shield_bash": 1.2,
+    "perfect_rush": 1.6
+  },
+  "animationSeries": {
+    "light": [
+      "bettercombat:two_handed_slash_horizontal_right",
+      "bettercombat:two_handed_slash_horizontal_left",
+      "bettercombat:two_handed_slash_vertical_right"
+    ]
+  }
+}

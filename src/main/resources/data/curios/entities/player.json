@@ -1,0 +1,6 @@
+{
+  "slots": [
+    { "type": "charm", "amount": 1 },
+    { "type": "accessory", "amount": 2 }
+  ]
+}

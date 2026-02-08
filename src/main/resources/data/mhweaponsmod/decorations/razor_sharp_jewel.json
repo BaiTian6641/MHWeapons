@@ -1,0 +1,19 @@
+{
+  "size": 1,
+  "tier": 2,
+  "tier_multiplier": 1.0,
+  "rarity": "common",
+  "category": "weapon",
+  "attributes": [
+    {
+      "attribute": "mhweaponsmod:sharpness_protect_chance",
+      "amount": 0.15,
+      "operation": "add",
+      "name": "mhweaponsmod.razor_sharp_jewel"
+    }
+  ],
+  "tags": [
+    "generic",
+    "weapon"
+  ]
+}

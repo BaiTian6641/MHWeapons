@@ -1,0 +1,20 @@
+{
+  "id": "bow",
+  "category": "bow",
+  "comboWindowTicks": 12,
+  "comboWindowBufferTicks": 12,
+  "chargeMaxTicks": 0,
+  "baseDamage": 4.0,
+  "motionValues": {
+    "bow_charge1": 0.8,
+    "bow_charge2": 1.1,
+    "bow_charge3": 1.4
+  },
+  "animationSeries": {
+    "light": [
+      "bettercombat:two_handed_slash_horizontal_right",
+      "bettercombat:two_handed_slash_horizontal_left",
+      "bettercombat:two_handed_slash_vertical_right"
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "allowed_slots": ["charm"],
+  "unique": true,
+  "unique_group": "defense_charm",
+  "max_equipped": 1,
+  "max_group": 1,
+  "attributes": [
+    {
+      "attribute": "minecraft:generic.armor",
+      "amount": 2.0,
+      "operation": "add",
+      "name": "mhweaponsmod.defense_charm"
+    }
+  ]
+}

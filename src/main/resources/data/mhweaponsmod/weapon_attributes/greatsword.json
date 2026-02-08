@@ -1,0 +1,36 @@
+{
+  "parent": "bettercombat:claymore",
+  "attributes": {
+    "two_handed": true,
+    "category": "mh_greatsword",
+    "attacks": [
+      {
+        "hitbox": "FORWARD_BOX",
+        "damage_multiplier": 1.0,
+        "movement_speed_multiplier": 0.8,
+        "range_multiplier": 1.1,
+        "angle": 80,
+        "upswing": 0.45,
+        "animation": "bettercombat:one_handed_slash_horizontal_right"
+      },
+      {
+        "hitbox": "FORWARD_BOX",
+        "damage_multiplier": 1.2,
+        "movement_speed_multiplier": 0.75,
+        "range_multiplier": 1.15,
+        "angle": 90,
+        "upswing": 0.6,
+        "animation": "bettercombat:one_handed_slash_horizontal_right"
+      },
+      {
+        "hitbox": "FORWARD_BOX",
+        "damage_multiplier": 1.4,
+        "movement_speed_multiplier": 0.6,
+        "range_multiplier": 1.2,
+        "angle": 100,
+        "upswing": 0.7,
+        "animation": "bettercombat:one_handed_slash_horizontal_right"
+      }
+    ]
+  }
+}

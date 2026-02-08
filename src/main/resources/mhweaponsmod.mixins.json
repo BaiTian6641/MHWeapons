@@ -1,0 +1,17 @@
+{
+  "required": true,
+  "package": "org.example.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "mhweaponsmod.refmap.json",
+  "mixins": [
+    "BetterCombatPlayerAttackHelperMixin",
+    "WeaponAttributesAttackAccessor"
+  ],
+  "client": [
+    "BetterCombatClientNetworkMixin",
+    "BetterCombatPlayerAttackAnimatableMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

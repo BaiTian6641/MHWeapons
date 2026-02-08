@@ -1,0 +1,18 @@
+{
+  "parent": "bettercombat:claymore",
+  "attributes": {
+    "two_handed": true,
+    "category": "mh_magnet_spike",
+    "attacks": [
+      {
+        "hitbox": "FORWARD_BOX",
+        "damage_multiplier": 1.2,
+        "movement_speed_multiplier": 0.85,
+        "range_multiplier": 1.2,
+        "angle": 90,
+        "upswing": 0.55,
+        "animation": "bettercombat:two_handed_slash_horizontal_right"
+      }
+    ]
+  }
+}

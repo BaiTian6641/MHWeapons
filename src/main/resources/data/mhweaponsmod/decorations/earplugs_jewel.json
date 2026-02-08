@@ -1,0 +1,19 @@
+{
+  "size": 1,
+  "tier": 3,
+  "tier_multiplier": 1.0,
+  "rarity": "common",
+  "category": "armor",
+  "attributes": [
+    {
+      "attribute": "mhweaponsmod:earplugs",
+      "amount": 1.0,
+      "operation": "add",
+      "name": "mhweaponsmod.earplugs_jewel"
+    }
+  ],
+  "tags": [
+    "generic",
+    "armor"
+  ]
+}

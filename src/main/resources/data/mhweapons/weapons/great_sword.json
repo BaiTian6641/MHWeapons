@@ -1,0 +1,12 @@
+{
+  "id": "great_sword",
+  "baseDamage": 8.0,
+  "motionValues": {
+    "basic_attack": 1.0,
+    "draw_slash": 1.0,
+    "strong_charge": 1.5,
+    "focus_strike": 1.8,
+    "tcs_hit1": 0.6,
+    "tcs_hit2": 2.5
+  }
+}

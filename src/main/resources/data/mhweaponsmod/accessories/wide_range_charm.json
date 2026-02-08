@@ -1,0 +1,15 @@
+{
+  "allowed_slots": ["charm"],
+  "unique": true,
+  "unique_group": "wide_range_charm",
+  "max_equipped": 1,
+  "max_group": 1,
+  "attributes": [
+    {
+      "attribute": "mhweaponsmod:wide_range",
+      "amount": 4.0,
+      "operation": "add",
+      "name": "mhweaponsmod.wide_range_charm"
+    }
+  ]
+}

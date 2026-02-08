@@ -1,0 +1,30 @@
+{
+  "id": "magnet_spike",
+  "baseDamage": 7.0,
+  "motionValues": {
+    "magnet_slash_i": 0.8,
+    "magnet_slash_ii": 0.9,
+    "magnet_slash_iii": 1.2,
+    "magnet_cleave": 1.5,
+    "cut_heavy_slash": 1.45,
+    "magnet_smash_i": 1.0,
+    "magnet_smash_ii": 1.1,
+    "magnet_crush": 1.4,
+    "magnet_suplex": 2.2,
+    "impact_bash": 0.95,
+    "impact_charge_i": 1.5,
+    "impact_charge_ii": 2.0,
+    "impact_charge_iii": 2.5,
+    "magnet_burst": 3.0
+  },
+  "animationSeries": {
+    "light": ["magnet_slash_i", "magnet_slash_ii", "magnet_slash_iii", "magnet_cleave"],
+    "heavy": ["magnet_smash_i", "magnet_smash_ii", "magnet_crush", "magnet_suplex"]
+  },
+  "comboWindowTicks": 36,
+  "category": "magnet_spike",
+  "modeAnimation": true,
+  "magnet_duration_ticks": 900,
+  "zip_cooldown": 25,
+  "gauge_gain_per_hit": 8.0
+}

@@ -1,0 +1,14 @@
+{
+  "allowed_slots": ["charm"],
+  "unique": true,
+  "unique_group": "element_charm",
+  "max_equipped": 1,
+  "max_group": 1,
+  "attributes": [
+    { "attribute": "mhweaponsmod:fire_damage", "amount": 3.0, "operation": "add", "name": "mhweaponsmod.element_charm_fire" },
+    { "attribute": "mhweaponsmod:water_damage", "amount": 3.0, "operation": "add", "name": "mhweaponsmod.element_charm_water" },
+    { "attribute": "mhweaponsmod:thunder_damage", "amount": 3.0, "operation": "add", "name": "mhweaponsmod.element_charm_thunder" },
+    { "attribute": "mhweaponsmod:ice_damage", "amount": 3.0, "operation": "add", "name": "mhweaponsmod.element_charm_ice" },
+    { "attribute": "mhweaponsmod:dragon_damage", "amount": 3.0, "operation": "add", "name": "mhweaponsmod.element_charm_dragon" }
+  ]
+}
