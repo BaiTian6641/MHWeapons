@@ -328,6 +328,22 @@ public final class WeaponStateEvents {
                 state.setLongSwordThrustComboIndex(0);
             }
 
+
+            // Fade Slash delayed forward motion
+            int fadeTicks = state.getLongSwordFadeSlashTicks();
+            if (fadeTicks > 0) {
+                state.setLongSwordFadeSlashTicks(fadeTicks - 1);
+                if (fadeTicks == 5) {
+                    Vec3 look = player.getLookAngle();
+                    Vec3 forward = new Vec3(look.x, 0.0, look.z);
+                    if (forward.lengthSqr() > 0.0001) {
+                         forward = forward.normalize().scale(0.8);
+                         player.setDeltaMovement(forward.x, player.getDeltaMovement().y + 0.1, forward.z);
+                         player.hurtMarked = true;
+                    }
+                }
+            }
+
             // Special Sheathe upkeep and auto-cancel on movement or timeout
             if (state.isLongSwordSpecialSheathe()) {
                 int remainingSheathe = state.getLongSwordSheatheTicks();

@@ -120,7 +120,7 @@ Current implementation diverges from standard MH controls to fit Minecraft's lim
     - [x] Crescent Slash.
 - [x] **Fade Slash**
     - [x] Backward movement logic.
-    - [ ] Lateral movement logic.
+    - [x] Lateral movement logic.
 - [x] **Reset of attack/combo**
     - [x] Passive reset after timeout (WeaponStateEvents).
 

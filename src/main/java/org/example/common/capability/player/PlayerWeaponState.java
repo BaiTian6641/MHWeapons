@@ -118,6 +118,7 @@ public final class PlayerWeaponState {
     private int longSwordOverheadComboIndex;
     private int longSwordOverheadComboTick;
     private boolean longSwordChargeReady;
+    private int longSwordFadeSlashTicks;
     private float longSwordHelmBreakerDirX;
     private float longSwordHelmBreakerDirY;
     private float longSwordHelmBreakerDirZ;
@@ -1343,6 +1344,7 @@ public final class PlayerWeaponState {
         tag.putInt("longSwordOverheadComboIndex", longSwordOverheadComboIndex);
         tag.putInt("longSwordOverheadComboTick", longSwordOverheadComboTick);
         tag.putBoolean("longSwordChargeReady", longSwordChargeReady);
+        tag.putInt("longSwordFadeSlashTicks", longSwordFadeSlashTicks);
         tag.putFloat("longSwordHelmBreakerDirX", longSwordHelmBreakerDirX);
         tag.putFloat("longSwordHelmBreakerDirY", longSwordHelmBreakerDirY);
         tag.putFloat("longSwordHelmBreakerDirZ", longSwordHelmBreakerDirZ);
@@ -1452,6 +1454,7 @@ public final class PlayerWeaponState {
         longSwordOverheadComboIndex = tag.getInt("longSwordOverheadComboIndex");
         longSwordOverheadComboTick = tag.getInt("longSwordOverheadComboTick");
         longSwordChargeReady = tag.getBoolean("longSwordChargeReady");
+        longSwordFadeSlashTicks = tag.getInt("longSwordFadeSlashTicks");
         longSwordHelmBreakerDirX = tag.getFloat("longSwordHelmBreakerDirX");
         longSwordHelmBreakerDirY = tag.getFloat("longSwordHelmBreakerDirY");
         longSwordHelmBreakerDirZ = tag.getFloat("longSwordHelmBreakerDirZ");
@@ -1580,6 +1583,17 @@ public final class PlayerWeaponState {
     public void setLongSwordChargeReady(boolean longSwordChargeReady) {
         if (this.longSwordChargeReady != longSwordChargeReady) {
             this.longSwordChargeReady = longSwordChargeReady;
+            markDirty();
+        }
+    }
+
+    public int getLongSwordFadeSlashTicks() {
+        return longSwordFadeSlashTicks;
+    }
+
+    public void setLongSwordFadeSlashTicks(int ticks) {
+        if (this.longSwordFadeSlashTicks != ticks) {
+            this.longSwordFadeSlashTicks = ticks;
             markDirty();
         }
     }

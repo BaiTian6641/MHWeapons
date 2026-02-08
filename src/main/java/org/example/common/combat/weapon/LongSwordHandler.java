@@ -320,6 +320,10 @@ public final class LongSwordHandler {
     }
 
     public static void handleAction(WeaponActionType action, boolean pressed, Player player, PlayerCombatState combatState, PlayerWeaponState weaponState) {
+        handleAction(action, pressed, player, combatState, weaponState, 0.0f, 0.0f);
+    }
+
+    public static void handleAction(WeaponActionType action, boolean pressed, Player player, PlayerCombatState combatState, PlayerWeaponState weaponState, float inputX, float inputZ) {
         if (!pressed) {
             return;
         }
@@ -488,22 +492,27 @@ public final class LongSwordHandler {
                 horiz = new Vec3(0.0, 0.0, 1.0);
             }
             horiz = horiz.normalize();
-            Vec3 left = new Vec3(-horiz.z, 0.0, horiz.x);
-            Vec3 right = new Vec3(horiz.z, 0.0, -horiz.x);
-            float strafe = player.xxa;
+            Vec3 left = new Vec3(horiz.z, 0.0, -horiz.x);
+            Vec3 right = new Vec3(-horiz.z, 0.0, horiz.x);
+            // Check input from packet first, fall back to entity state
+            float strafe = (Math.abs(inputX) > 0.01f) ? inputX : player.xxa;
+            
             double dodgeDistanceMultiplier = 1.0 + player.getAttributeValue(MHAttributes.DODGE_DISTANCE_BONUS.get());
             double fadeDistance = 0.6 * Math.max(0.0, dodgeDistanceMultiplier);
             Vec3 dash;
             if (strafe > 0.15f) {
-                dash = right.scale(fadeDistance);
-            } else if (strafe < -0.15f) {
+                 // Left input -> Move Left
                 dash = left.scale(fadeDistance);
+            } else if (strafe < -0.15f) {
+                 // Right input -> Move Right
+                dash = right.scale(fadeDistance);
             } else {
                 dash = horiz.scale(-fadeDistance);
             }
             player.setDeltaMovement(dash.x, player.getDeltaMovement().y + 0.12, dash.z);
             player.hurtMarked = true;
             combatState.setDodgeIFrameTicks(Math.max(combatState.getDodgeIFrameTicks(), 6));
+            weaponState.setLongSwordFadeSlashTicks(12);
             return;
         }
 

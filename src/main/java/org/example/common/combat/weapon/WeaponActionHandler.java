@@ -145,7 +145,7 @@ public final class WeaponActionHandler {
 
         switch (weaponId) {
             case "greatsword" -> handleGreatSword(action, pressed, combatState);
-            case "longsword" -> LongSwordHandler.handleAction(action, pressed, player, combatState, weaponState);
+            case "longsword" -> LongSwordHandler.handleAction(action, pressed, player, combatState, weaponState, inputX, inputZ);
             case "sword_and_shield" -> handleSwordAndShield(action, pressed, combatState);
             case "dual_blades" -> handleDualBlades(action, pressed, player, combatState, weaponState);
             case "hammer" -> handleHammer(action, pressed, combatState, weaponState);
