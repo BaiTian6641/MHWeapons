@@ -116,39 +116,39 @@ Mapping complex inputs to Minecraft's limited bindings.
 ## 5. Implementation Checklist
 
 ### Core Systems
-- [ ] **Dual Gauge Capability**
-    - [ ] Switch Gauge logic (Refill rule, Decay rule).
-    - [ ] Amp Gauge logic (Gain on Sword hit).
-    - [ ] Amped Timer & Power Axe Timer.
-- [ ] **HUD**
-    - [ ] Switch Gauge Bar (morph capability marker at 30%).
-    - [ ] Amp Gauge (Glows when full).
-    - [ ] Axe/Sword Mode Icon.
-    - [ ] Phial Indicator.
+- [x] **Dual Gauge Capability**
+    - [x] Switch Gauge logic (Refill rule, Decay rule).
+    - [x] Amp Gauge logic (Gain on Sword hit).
+    - [x] Amped Timer & Power Axe Timer.
+- [x] **HUD**
+    - [x] Switch Gauge Bar (morph capability marker at 30%).
+    - [x] Amp Gauge (Glows when full).
+    - [x] Axe/Sword Mode Icon.
+    - [x] Phial Indicator.
 
 ### Basic Moveset
-- [ ] **Axe Actions**
-    - [ ] `Overhead` chain.
-    - [ ] `Wild Swing` (Loop logic).
-    - [ ] `Heavy Slam` (Power Axe trigger).
-    - [ ] `Spiral Burst Slash` (Refill).
-- [ ] **Sword Actions**
-    - [ ] `Overhead` chain.
-    - [ ] `Double Slash`.
-    - [ ] `Heavenward Flurry` (High amp gain).
+- [x] **Axe Actions**
+    - [x] `Overhead` chain.
+    - [x] `Wild Swing` (Loop logic).
+    - [x] `Heavy Slam` (Power Axe trigger).
+    - [x] `Spiral Burst Slash` (Refill).
+- [x] **Sword Actions**
+    - [x] `Overhead` chain.
+    - [x] `Double Slash`.
+    - [x] `Heavenward Flurry` (High amp gain).
 
 ### Transformation
-- [ ] **Morph Logic**
-    - [ ] Idle Morph (Stand still).
-    - [ ] Morph Slash (Mid-combo).
-    - [ ] Forced Morph (Gauge Empty).
+- [x] **Morph Logic**
+    - [x] Idle Morph (Stand still).
+    - [x] Morph Slash (Mid-combo).
+    - [x] Forced Morph (Gauge Empty).
 
 ### Finishers (Wilds)
-- [ ] **Counters**
-    - [ ] `Offset Rising Slash` (Axe counter window).
-    - [ ] `Counter Rising Slash` (Sword super-armor).
+- [x] **Counters**
+    - [x] `Offset Rising Slash` (Axe counter window).
+    - [x] `Counter Rising Slash` (Sword super-armor).
 - [ ] **Discharge**
-    - [ ] `Element Discharge` (Repeated inputs).
+    - [x] `Element Discharge` (Repeated inputs).
     - [ ] `Zero Sum Discharge` (Latch logic or sticky hit).
-    - [ ] `Full Release Slash` (Explosion + Morph).
+    - [x] `Full Release Slash` (Explosion + Morph).
     - [ ] `Unbridled Slash` (Explosion + Morph).

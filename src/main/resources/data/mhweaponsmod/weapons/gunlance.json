@@ -7,6 +7,8 @@
   "baseDamage": 6.0,
   "motionValues": {
     "basic_attack": 1.0,
+    "rising_slash": 1.1,
+    "overhead_smash": 1.5,
     "shell": 1.4,
     "charge_shell": 1.8,
     "wyrmstake": 1.8,
@@ -17,16 +19,19 @@
   },
   "animationSeries": {
     "light": [
-      "bettercombat:two_handed_slash_horizontal_right",
-      "bettercombat:two_handed_slash_horizontal_left",
-      "bettercombat:two_handed_slash_vertical_right"
+      "bettercombat:two_handed_stab_right",
+      "bettercombat:two_handed_stab_left",
+      "bettercombat:two_handed_slash_vertical_right",
+      "bettercombat:two_handed_slam",
+      "bettercombat:two_handed_slash_horizontal_right"
     ]
   },
   "animationOverrides": {
     "quick_reload": "bettercombat:two_handed_slash_horizontal_left",
     "reload": "bettercombat:two_handed_slam",
     "wyvernfire": "bettercombat:two_handed_slam_heavy",
-    "wyrmstake": "bettercombat:two_handed_stab_right"
+    "wyrmstake": "bettercombat:two_handed_stab_right",
+    "burst_fire": "bettercombat:two_handed_slam_heavy"
   },
   "animationTiming": {
     "length": 20.0,

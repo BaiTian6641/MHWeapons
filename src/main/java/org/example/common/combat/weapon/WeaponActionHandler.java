@@ -149,7 +149,7 @@ public final class WeaponActionHandler {
             case "sword_and_shield" -> handleSwordAndShield(action, pressed, combatState);
             case "dual_blades" -> handleDualBlades(action, pressed, player, combatState, weaponState);
             case "hammer" -> handleHammer(action, pressed, combatState, weaponState);
-            case "hunting_horn" -> handleHuntingHorn(action, pressed, player, combatState, weaponState);
+            case "hunting_horn" -> HuntingHornHandler.handleAction(action, pressed, player, combatState, weaponState);
             case "lance" -> handleLance(action, pressed, player, combatState, weaponState);
             case "gunlance" -> handleGunlance(action, pressed, player, combatState, weaponState);
             case "switch_axe" -> {
@@ -394,93 +394,7 @@ public final class WeaponActionHandler {
         }
     }
 
-    @SuppressWarnings("null")
-    private static void handleHuntingHorn(WeaponActionType action, boolean pressed, Player player, PlayerCombatState combatState, PlayerWeaponState weaponState) {
-        if (!pressed) {
-            return;
-        }
-        
-        // Note logic: Left=1, Right=2, Left+Right = 3 (Shift still allowed for legacy input)
-        int note = 0;
-        if (action == WeaponActionType.HORN_NOTE_BOTH) {
-            note = 3;
-        } else if (action == WeaponActionType.WEAPON) {
-            note = 1;
-            if (player.isShiftKeyDown()) note = 3; // Shift+Left = 3
-        } else if (action == WeaponActionType.WEAPON_ALT) {
-            note = 2;
-            if (player.isShiftKeyDown()) note = 3; // Shift+Right = 3
-        }
-        boolean triggerAltAnimation = action == WeaponActionType.WEAPON_ALT;
-
-        if (note > 0) {
-            weaponState.addHornNote(note);
-            String actionKey = note == 1 ? "note_one" : (note == 2 ? "note_two" : "note_three");
-            setAction(combatState, actionKey, 10);
-
-                if (triggerAltAnimation && player instanceof ServerPlayer serverPlayer) {
-                String fallbackAnim = WeaponDataResolver.resolveString(player, "animationOverrides", "hunting_horn_note",
-                    "bettercombat:two_handed_slash_horizontal_right");
-                String animId = BetterCombatAnimationBridge.resolveComboAnimationServer(player, 0, fallbackAnim);
-                float length = WeaponDataResolver.resolveFloat(player, "animationTiming", "length", 16.666666f);
-                float upswing = WeaponDataResolver.resolveFloat(player, "animationTiming", "upswing", 0.55f);
-                ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> serverPlayer),
-                        new PlayAttackAnimationS2CPacket(player.getId(), animId, length, upswing, 1.0f, actionKey, 10));
-            }
-            WeaponData data = WeaponDataResolver.resolve(player);
-            SongMatch autoMatch = resolveAutoSongMatch(data, weaponState);
-            if (autoMatch != null) {
-                weaponState.addHornMelody(autoMatch.melodyId);
-            }
-            return;
-        }
-
-        if (action == WeaponActionType.SPECIAL && !player.isShiftKeyDown()) {
-            setAction(combatState, "recital", 12);
-            WeaponData data = WeaponDataResolver.resolve(player);
-            SongMatch match = resolveSongMatch(data, weaponState);
-            if (match != null) {
-                weaponState.addHornMelody(match.melodyId);
-                weaponState.setHornBuffTicks(match.duration);
-                weaponState.clearHornNotes();
-                return;
-            }
-            if (weaponState.getHornLastMelodyEnhanceTicks() > 0 && weaponState.getHornLastMelodyId() > 0) {
-                MelodyPlay last = resolveMelodyById(data, weaponState.getHornLastMelodyId());
-                if (last != null) {
-                    int amp = last.amplifier + 1;
-                    int duration = last.duration + (last.duration / 2);
-                    applyMelodyEffect(player, last.songId, last.effect, amp, duration, last.radius);
-                    applyHornSongBuff(weaponState, last.songId, duration);
-                    weaponState.setHornBuffTicks(duration);
-                    weaponState.setHornMelodyPlayTicks(12);
-                    weaponState.setHornLastMelodyEnhanceTicks(0);
-                    weaponState.clearHornNotes();
-                    return;
-                }
-            }
-            MelodyPlay play = resolveMelodyPlay(data, weaponState);
-            if (play != null) {
-                applyMelodyEffect(player, play.songId, play.effect, play.amplifier, play.duration, play.radius);
-                applyHornSongBuff(weaponState, play.songId, play.duration);
-                weaponState.setHornBuffTicks(play.duration);
-                weaponState.setHornMelodyPlayTicks(12);
-                weaponState.setHornLastMelodyId(play.melodyId);
-                weaponState.setHornLastMelodyEnhanceTicks(60);
-                weaponState.clearHornNotes();
-            }
-        }
-
-        if (action == WeaponActionType.SPECIAL && player.isShiftKeyDown()) {
-            setAction(combatState, "dance", 12);
-            WeaponData data = WeaponDataResolver.resolve(player);
-            BubbleDef fixed = resolveFixedEchoBubble(data);
-            if (fixed != null) {
-                spawnEchoBubble(player, fixed.effect, fixed.amplifier, fixed.duration, fixed.radius);
-                weaponState.setHornBuffTicks(fixed.duration);
-            }
-        }
-    }
+    // Hunting Horn logic moved to HuntingHornHandler.java
 
     private static void handleLance(WeaponActionType action, boolean pressed, Player player, PlayerCombatState combatState, PlayerWeaponState weaponState) {
         if (!pressed) {
@@ -582,6 +496,27 @@ public final class WeaponActionHandler {
                      ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> serverPlayer),
                              new PlayAttackAnimationS2CPacket(player.getId(), animId, length, upswing, 1.0f,
                                      "wyrmstake", 12));
+                 }
+                 syncWeaponState(player, weaponState);
+                 return;
+             }
+
+             // Burst Fire: After Overhead Smash (context-sensitive trigger)
+             // Client sends WEAPON action without shift held when conditions are met
+             String prevAction = combatState.getActionKey();
+             boolean afterOverheadSmash = "gunlance_overhead_smash".equals(prevAction)
+                     && combatState.getActionKeyTicks() > 0;
+             if (!player.isShiftKeyDown() && afterOverheadSmash && weaponState.getGunlanceShells() > 0) {
+                 gl.useBurstFire(player.level(), player, weaponState);
+                 setAction(combatState, "burst_fire", 14);
+                 if (player instanceof ServerPlayer serverPlayer) {
+                     String animId = WeaponDataResolver.resolveString(player, "animationOverrides", "burst_fire",
+                             "bettercombat:two_handed_slam_heavy");
+                     float length = WeaponDataResolver.resolveFloat(player, "animationTiming", "length", 20.0f);
+                     float upswing = WeaponDataResolver.resolveFloat(player, "animationTiming", "upswing", 0.3f);
+                     ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> serverPlayer),
+                             new PlayAttackAnimationS2CPacket(player.getId(), animId, length, upswing, 1.0f,
+                                     "burst_fire", 14));
                  }
                  syncWeaponState(player, weaponState);
                  return;
@@ -1040,226 +975,5 @@ public final class WeaponActionHandler {
         return false;
     }
 
-    private static int[] lastNotes(PlayerWeaponState state, int max) {
-        int[] notes = new int[] { state.getHornNoteA(), state.getHornNoteB(), state.getHornNoteC(), state.getHornNoteD(), state.getHornNoteE() };
-        int count = Math.min(state.getHornNoteCount(), notes.length);
-        int size = Math.min(max, count);
-        int[] out = new int[size];
-        int start = Math.max(0, count - size);
-        for (int i = 0; i < size; i++) {
-            out[i] = notes[start + i];
-        }
-        return out;
-    }
-
-    private static SongMatch resolveSongMatch(WeaponData data, PlayerWeaponState state) {
-        if (data == null) {
-            return null;
-        }
-        var json = data.getJson();
-        if (!json.has("songs") || !json.get("songs").isJsonArray()) {
-            return null;
-        }
-        int queueSize = json.has("noteQueueSize") ? json.get("noteQueueSize").getAsInt() : 5;
-        int[] last = lastNotes(state, queueSize);
-        var songs = json.getAsJsonArray("songs");
-        int melodyId = 0;
-        for (int i = 0; i < songs.size(); i++) {
-            var song = songs.get(i).getAsJsonObject();
-            if (!song.has("pattern") || !song.get("pattern").isJsonArray()) {
-                continue;
-            }
-            int[] pattern = new int[song.getAsJsonArray("pattern").size()];
-            for (int p = 0; p < pattern.length; p++) {
-                pattern[p] = song.getAsJsonArray("pattern").get(p).getAsInt();
-            }
-            if (!matchesPattern(last, pattern)) {
-                continue;
-            }
-            melodyId = i + 1;
-            String bubbleId = song.has("bubble") ? song.get("bubble").getAsString() : null;
-            BubbleDef bubble = resolveBubbleDef(json, bubbleId);
-            if (bubble != null) {
-                return new SongMatch(melodyId, bubble.effect, bubble.amplifier, bubble.duration, bubble.radius);
-            }
-        }
-        return null;
-    }
-
-    private static SongMatch resolveAutoSongMatch(WeaponData data, PlayerWeaponState state) {
-        if (data == null) {
-            return null;
-        }
-        var json = data.getJson();
-        if (!json.has("songs") || !json.get("songs").isJsonArray()) {
-            return null;
-        }
-        int queueSize = json.has("noteQueueSize") ? Math.max(1, json.get("noteQueueSize").getAsInt()) : 5;
-        int[] last = lastNotes(state, queueSize);
-        if (last.length == 0) {
-            return null;
-        }
-        var songs = json.getAsJsonArray("songs");
-        for (int i = 0; i < songs.size(); i++) {
-            var song = songs.get(i).getAsJsonObject();
-            if (!song.has("pattern") || !song.get("pattern").isJsonArray()) {
-                continue;
-            }
-            int[] pattern = readPattern(song.getAsJsonArray("pattern"));
-            if (pattern.length != 2 && pattern.length != 3 && pattern.length != 4) {
-                continue;
-            }
-            if (!matchesPattern(last, pattern)) {
-                continue;
-            }
-            int melodyId = i + 1;
-            String bubbleId = song.has("bubble") ? song.get("bubble").getAsString() : null;
-            BubbleDef bubble = resolveBubbleDef(json, bubbleId);
-            if (bubble != null) {
-                return new SongMatch(melodyId, bubble.effect, bubble.amplifier, bubble.duration, bubble.radius);
-            }
-        }
-        return null;
-    }
-
-    private static int[] readPattern(com.google.gson.JsonArray array) {
-        int[] pattern = new int[array.size()];
-        for (int i = 0; i < pattern.length; i++) {
-            pattern[i] = array.get(i).getAsInt();
-        }
-        return pattern;
-    }
-
-    private static boolean matchesPattern(int[] last, int[] pattern) {
-        if (pattern.length == 0 || last.length < pattern.length) {
-            return false;
-        }
-        int offset = last.length - pattern.length;
-        for (int i = 0; i < pattern.length; i++) {
-            if (last[offset + i] != pattern[i]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    @SuppressWarnings({"null", "deprecation"})
-    private static BubbleDef resolveBubbleDef(com.google.gson.JsonObject json, String id) {
-        if (!json.has("echoBubbles") || !json.get("echoBubbles").isJsonArray()) {
-            return null;
-        }
-        var bubbles = json.getAsJsonArray("echoBubbles");
-        for (int i = 0; i < bubbles.size(); i++) {
-            var bubble = bubbles.get(i).getAsJsonObject();
-            if (id != null && bubble.has("id") && !id.equals(bubble.get("id").getAsString())) {
-                continue;
-            }
-            String effectId = bubble.has("effect") ? bubble.get("effect").getAsString() : "minecraft:speed";
-            ResourceLocation effectKey = ResourceLocation.tryParse(effectId);
-            if (effectKey == null) {
-                continue;
-            }
-            MobEffect effect = net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT.get(effectKey);
-            int amp = bubble.has("amplifier") ? bubble.get("amplifier").getAsInt() : 0;
-            int duration = bubble.has("duration") ? bubble.get("duration").getAsInt() : 200;
-            float radius = bubble.has("radius") ? bubble.get("radius").getAsFloat() : 3.5f;
-            return new BubbleDef(effect, amp, duration, radius);
-        }
-        return null;
-    }
-
-    private static BubbleDef resolveFixedEchoBubble(WeaponData data) {
-        if (data == null) {
-            return null;
-        }
-        var json = data.getJson();
-        if (json.has("fixedEchoBubble") && json.get("fixedEchoBubble").isJsonPrimitive()) {
-            return resolveBubbleDef(json, json.get("fixedEchoBubble").getAsString());
-        }
-        return resolveBubbleDef(json, null);
-    }
-
-    private static MelodyPlay resolveMelodyPlay(WeaponData data, PlayerWeaponState state) {
-        if (data == null || state.getHornMelodyCount() <= 0) {
-            return null;
-        }
-        int index = Math.max(0, Math.min(state.getHornMelodyIndex(), state.getHornMelodyCount() - 1));
-        int melodyId = state.consumeHornMelodyAt(index);
-        if (melodyId <= 0) {
-            return null;
-        }
-        return resolveMelodyById(data, melodyId);
-    }
-
-    private static MelodyPlay resolveMelodyById(WeaponData data, int melodyId) {
-        if (data == null || melodyId <= 0) {
-            return null;
-        }
-        var json = data.getJson();
-        if (!json.has("songs") || !json.get("songs").isJsonArray()) {
-            return null;
-        }
-        var songs = json.getAsJsonArray("songs");
-        int idx = melodyId - 1;
-        if (idx < 0 || idx >= songs.size()) {
-            return null;
-        }
-        var song = songs.get(idx).getAsJsonObject();
-        String songId = song.has("id") ? song.get("id").getAsString() : "melody_" + melodyId;
-        String bubbleId = song.has("bubble") ? song.get("bubble").getAsString() : null;
-        BubbleDef bubble = resolveBubbleDef(json, bubbleId);
-        if (bubble == null) {
-            return null;
-        }
-        return new MelodyPlay(melodyId, songId, bubble.effect, bubble.amplifier, bubble.duration, bubble.radius);
-    }
-
-    @SuppressWarnings("null")
-    private static void applyMelodyEffect(Player player, String songId, MobEffect effect, int amplifier, int duration, float radius) {
-        AABB box = player.getBoundingBox().inflate(radius, 1.0, radius);
-        for (Player target : player.level().getEntitiesOfClass(Player.class, box)) {
-            if ("healing_medium_depoison".equals(songId)) {
-                target.removeEffect(net.minecraft.world.effect.MobEffects.POISON);
-            }
-            target.addEffect(new net.minecraft.world.effect.MobEffectInstance(effect, duration, amplifier, false, true));
-        }
-    }
-
-    private static void applyHornSongBuff(PlayerWeaponState state, String songId, int duration) {
-        if (songId == null) {
-            return;
-        }
-        switch (songId) {
-            case "attack_up_small" -> state.setHornAttackSmallTicks(duration);
-            case "attack_up_large" -> state.setHornAttackLargeTicks(duration);
-            case "defense_up_large" -> state.setHornDefenseLargeTicks(duration);
-            case "melody_hit" -> state.setHornMelodyHitTicks(duration);
-            default -> {
-            }
-        }
-    }
-
-    private record BubbleDef(MobEffect effect, int amplifier, int duration, float radius) {
-    }
-
-    private record SongMatch(int melodyId, MobEffect effect, int amplifier, int duration, float radius) {
-    }
-
-    private record MelodyPlay(int melodyId, String songId, MobEffect effect, int amplifier, int duration, float radius) {
-    }
-
-
-    @SuppressWarnings({"null", "deprecation"})
-    private static void spawnEchoBubble(Player player, MobEffect effect, int amplifier, int duration, float radius) {
-        var bubble = new org.example.common.entity.EchoBubbleEntity(
-                MHWeaponsItems.ECHO_BUBBLE.get(),
-                player.level(),
-                net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT.getId(effect),
-                amplifier,
-                duration,
-                radius
-        );
-        bubble.setPos(player.getX(), player.getY() + 0.1, player.getZ());
-        player.level().addFreshEntity(bubble);
-    }
+    // Hunting Horn song/note/melody/bubble helpers moved to HuntingHornHandler.java
 }

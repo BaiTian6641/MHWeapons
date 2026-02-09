@@ -1,111 +1,177 @@
 # Gunlance (GL) — Technical Implementation Plan
 
 **Overview:**
-The explosive cousin of the Lance. Combines long-reaching thrusts with shell fire. Great guarding capabilities.
+The explosive cousin of the Lance. Combines long-reaching thrusts with shell fire. Great guarding capabilities. Features complex resource management (Shells, Wyrmstake, Wyvern's Fire Gauge) and explosive combos.
 
 ## 1. Core Mechanics & Architecture (MHWilds Specification)
 
-### 1.0. Official Move List & Terminology
-Based on MHWilds research:
-*   **Basic Attacks**:
-    *   **Lateral Thrust** (I, II, III): Standard poke combo.
-    *   **Rising Slash**: Vertical upswing (can chain into Overhead Smash).
-    *   **Overhead Smash**: Heavy downward slam (leads to Burst Fire).
-    *   **Wide Sweep**: Horizontal heavy swing (high damage).
-    *   **Lunging Upthrust**: Gap closer.
-*   **Shelling Attacks**:
-    *   **Shelling**: Standard fire.
-    *   **Charged Shelling**: Held fire (Hold O/Right Click).
-    *   **Burst Fire**: Fires all remaining shells (often called Full Burst).
-*   **Reload Actions**:
-    *   **Reload**: Standard reload (fills Shells + Wyrmstake).
-    *   **Quick Reload**: Fast reload during combos (fills Shells only).
-    *   **Guard Reload**: (If applicable to type/switch skill, fills fewer shells + Wyrmstake).
-*   **Special Moves**:
-    *   **Wyvern's Fire**: Multi-hit explosion. Now uses a **2-segment Gauge**. Consumes 1 segment.
-    *   **Wyrmstake Cannon**: Embeds the explosive stake.
-    *   **Wyrmstake Full Blast**: *New in Wilds*. Fires all Shells AND the Wyrmstake simultaneously.
-*   **Focus Mode**:
-    *   **Focus Strike: Drake Auger**: *New in Wilds*. A drilling attack that targets Wounds. Transitions into Wyrmstake or Shelling.
-
-### 1.0.1. HUD & UI Elements
-*   **Shell Icons**: Displayed as bullet-shaped icons. Count depends on Shell Type (Normal: 6, Long: 4, Wide: 2).
-*   **Wyrmstake Icon**: A single stake icon next to the shell bar. Indicates if Wyrmstake is loaded.
-*   **Wyvern's Fire Gauge**: A new bar/gauge with 2 segments. Indicates charges available for Wyvern's Fire.
-*   **Reload State**: Visual feedback (color change or animation) on icons when empty.
-
 ### 1.1. Shelling System
 *   **Ammo**: Requires reloading. Consumed by Shelling, Charged Shelling, Burst Fire.
-*   **Types**:
-    *   **Normal**: Highest capacity (6). Best **Full Burst**.
-    *   **Long**: Medium capacity (4). Stronger **Wyrmstake Cannon**. Increased range.
+*   **Shelling Types**:
+    *   **Normal**: Highest capacity (6). Best **Burst Fire** (Full Burst).
+    *   **Long**: Medium capacity (4). Stronger **Wyrmstake Cannon**. Increased shelling range.
     *   **Wide**: Low capacity (2). Strongest **Shelling** and **Wyvern's Fire**.
 *   **Mechanics**:
-    *   **Shelling**: Instant fixed fire damage.
+    *   **Shelling**: Instant fixed fire damage. Ignores hitzones ("burns through hide").
     *   **Charged Shelling**: Hold fire button. Higher damage.
-    *   **Rapid Fire**: (From MHWilds manual, implies holding button fires continuously?). *Note: Manual mentions "Holding the Shell button now fires continuously" in my previous search, but the specific manual page just says "Charged Shelling... Hold... firing them all at once" for Charged. Need to clarify Rapid Fire vs Charged.*
-    *   **Moving Wide Sweep**: Shelling during movement/combo.
+    *   **Burst Fire (Full Burst)**: Fires all remaining shells at once.
 
 ### 1.2. Wyrmstake Cannon (WSC)
-*   **Ammo**: Requires specific reload (Full Reload or specialized).
-*   **Action**: Embeds a staking projectile that ticks damage before exploding.
+*   **Ammo**: Requires specific "Full Reload" or specialized reloads. Single use capacity.
+*   **Action**: Embeds a multi-hit ticking stake that explodes after a short delay.
 *   **Wilds Update**:
-    *   **Wyrmstake Full Blast**: Fires ALL shells + Wyrmstake.
-    *   **Multi Wyrmstake Full Blast**: Follow up to the above?
+    *   **Wyrmstake Full Blast**: Fires ALL shells + Wyrmstake simultaneously.
+    *   **Multi Wyrmstake Full Blast**: Follow-up attack.
 
 ### 1.3. Wyvern's Fire (WF)
-*   **Gauge**: New 2-segment gauge.
+*   **Gauge**: New **2-segment Gauge**.
 *   **Action**: Consumes 1 segment. Massive multi-hit explosion + Fire damage.
-*   **Recharge**: Auto-recovers over time, or by landing hits.
+*   **Recharge**: Auto-recovers, or accelerates by landing hits / guarding hits.
+*   **Implementation**: `GunlanceItem#useWyvernFire` handles the charge-up state and particle effects.
 
 ### 1.4. Focus Mode
-*   **Focus Strike: Drake Auger**: Drill attack on wounds -> Wyrmstake finisher.
+*   **Focus Strike: Drake Auger**: A drilling attack that targets wounds. Transitions into Wyrmstake or Shelling.
 
 ---
 
-## 2. Integration Strategy (Minecraft)
+## 2. Key Moveset & Combos
 
-### 2.1. Controls Mapping
-*   **Left Click (Attack)**: Thrusts (Lateral/Lunging).
-*   **Right Click (Use)**: Shelling.
+### 2.1. Basic Attacks
+*   **Lateral Thrust I, II, III**: Standard poke combo (`Left Click` loop).
+*   **Rising Slash**: Vertical upswing. Good for reaching high tails.
+*   **Overhead Smash**: Heavy downward slam. Key transition to Burst Fire.
+*   **Wide Sweep**: Horizontal heavy swing. High motion value.
+
+### 2.2. Shelling Actions
+*   **Shelling**: `Right Click`.
+*   **Charged Shelling**: Hold `Right Click`.
+*   **Reload**: `Guard` + `Shell`. Refills Shells + Wyrmstake.
+*   **Quick Reload**: `Guard` + `Shell` during combo. Refills Shells only.
+
+### 2.3. Combo Recommended Lists
+
+#### **A. Basic Poke-Shell Loop** (Safe, Consistent)
+1.  **Lateral Thrust I** (`Left Click`)
+2.  **Lateral Thrust II** (`Left Click`)
+3.  **Shelling** (`Right Click`)
+4.  *Repeat or Quick Reload*
+
+#### **B. Burst Fire (Full Burst) Loop** (High Damage, Normal/Long)
+1.  **Rising Slash** (`Right Click` + `Left Click` or `Forward` + `Left Click`)
+2.  **Overhead Smash** (`Left Click`)
+3.  **Burst Fire** (`Right Click`) - *Fires all shells*
+4.  **Wide Sweep** (`Left Click`)
+5.  **Quick Reload** (`Right Click` + `Guard` Key)
+6.  *Repeat from Overhead Smash*
+
+#### **C. Wyrmstake Cannon Combo**
+1.  **Lateral Thrust I** (`Left Click`)
+2.  **Lateral Thrust II** (`Left Click`)
+3.  **Wide Sweep** (`Left Click`x2 or after Overhead Smash)
+4.  **Wyrmstake Cannon** (`Left Click` or `Right Click`) - *Embeds the stake*
+
+#### **D. Wyrmstake Full Blast (Wilds Special)**
+1.  **Shelling** (`Right Click`)
+2.  **Moving Wide Sweep** (`Forward` + `Left Click` + `Right Click`?)
+3.  **Wyrmstake Full Blast** (`Left Click` + `Right Click`)
+4.  **Multi Wyrmstake Full Blast** (Follow up Input)
+
+---
+
+## 3. Integration Strategy (Minecraft)
+
+### 3.1. Controls Mapping
+*   **Attack (Left Click)**: Lateral Thrusts / Lunging Upthrust (Forward).
+*   **Use (Right Click)**: Shelling.
     *   **Hold**: Charged Shelling.
-*   **Sneak + Right Click**: Reload (Full).
-*   **Sneak + Right Click (during combo)**: Quick Reload.
-*   **Right Click + Left Click**: Rising Slash / Burst Fire (Context dependent).
-*   **Keybind (Default R)**: Guard? Or use Shield mechanics.
+*   **Reload**: `Sneak` + `Right Click`.
+*   **Burst Fire**: Triggered contextually if `Right Click` is pressed after `Overhead Smash`.
+*   **Wyvern's Fire**: Keybind `R` (Special Weapon Action) while Guarding? Or `Hold R`.
 
-### 2.2. Better Combat Integration
-*   Weapons defined as "Polearm" or "Spear" for reach.
-*   Custom combo sequence.
-*   **Shelling**: Implemented as a "cast" or instant "shoot" via Right Click.
-
-### 2.3. Projectiles
-*   **Shells**: Raycast (Hitscan) for instant feedback. `MHDamageType.FIXED`.
-*   **Wyrmstake**: Projectile Entity (`WyrmstakeEntity`) that sticks to target.
-
----
-
-## 3. Data Config & State
-
-### 3.1. Player State (`PlayerWeaponState`)
-Usage of existing `PlayerWeaponState` fields:
-*   `gunlanceShells`: Current shell count.
-*   `gunlanceMaxShells`: Max capacity (based on weapon tier/type).
-*   `gunlanceHasStake`: Boolean for Wyrmstake ammo.
-*   `gunlanceWyvernfireCooldown`: Replaced/Augmented by Gauge logic.
-    *   *New Field needed*: `float gunlanceWyvernFireGauge` (0.0 to 2.0).
-
-### 3.2. Weapon Item (`GunlanceItem`)
-*   Extends `GeoWeaponItem`.
-*   Properties: `ShellType` (Normal, Long, Wide), `ShellLevel`.
+### 3.2. Codebase Status (`GunlanceItem.java` & `PlayerWeaponState`)
+*   **Implemented**:
+    *   `ShellingType` Enum (NORMAL, LONG, WIDE).
+    *   `useShell`: Logic for removing ammo, charged calculations, and `WIDE` bonuses.
+    *   `useWyvernFire`: Checks `GunlanceWyvernFireGauge`, sets charging state.
+    *   `useWyvernFireBlast`: The actual damage event after charge.
+*   **To Do**:
+    *   **Wyrmstake Entity**: Need to implement the sticking projectile logic.
+    *   **Reload Animations**: Connect `GeckoLib` animations to the reload action.
+    *   **Combo Context**: `BetterCombat` configuration to detect "After Overhead Smash" for Burst Fire logic.
 
 ---
 
-## 4. Development Tasks
-- [ ] **Item Class**: Create `GunlanceItem` extending `GeoWeaponItem`.
-- [ ] **State Management**: Update `PlayerWeaponState` to support WF Gauge.
-- [ ] **Shelling Logic**: Implement `use` method for Shelling and Charged Shelling.
-- [ ] **Reload Logic**: Implement Reload mechanism.
-- [ ] **Wyrmstake**: Create `WyrmstakeEntity` and firing logic.
-- [ ] **Wyvern's Fire**: Implement the 2-segment gauge and firing logic.
-- [ ] **Animations**: Hook up GeckoLib animations for Shelling/Reloading.
+## 4. Data Config
+
+### 4.1. Player State (`PlayerWeaponState`)
+*   `int gunlanceShells`: Current count.
+*   `int gunlanceMaxShells`: Based on gunlance tier.
+*   `float gunlanceWyvernFireGauge`: 0.0 to 2.0.
+*   `boolean gunlanceHasStake`: Loaded status.
+
+### 4.2. JSON Config (`data/mhweapons/gunlance/`)
+```json
+{
+  "shelling_damage_base": 15.0,
+  "level_multiplier": 5.0,
+  "charged_multiplier": 1.5,
+  "wyvern_fire_cooldown": 200
+}
+```
+
+---
+
+## 5. Implementation Checklist
+
+- [x] **Item Definition**: `GunlanceItem` class structure and properties.
+- [x] **Shelling Logic (Base)**: `useShell` implementation for Normal/Long/Wide and Charged shots.
+- [x] **Wyvern's Fire Logic**: Charge state and firing mechanism (`useWyvernFire`).
+- [x] **State Management**:
+    - [x] `gunlanceWyvernFireGauge` (float) in `PlayerWeaponState` — 2-segment gauge (0.0–2.0).
+    - [x] `gunlanceHasStake` (boolean) in `PlayerWeaponState`.
+    - [x] `gunlanceCharging` / `gunlanceChargeTicks` for WF charge sequence.
+    - [x] `gunlanceCooldown` for shell fire cooldown.
+    - [x] NBT serialization & sync packet logic for all fields.
+- [x] **MaxShells Sync**: `syncMaxShells()` auto-sets capacity from `ShellingType` (Normal:6, Long:4, Wide:2).
+- [x] **Reload Mechanics**:
+    - [x] `reload()` — Full reload (Shells + Wyrmstake).
+    - [x] `quickReload()` — Quick reload (+2 shells, no Wyrmstake).
+    - [x] Bound to WEAPON_ALT key; context-sensitive (quick if mid-combo, full if shift).
+- [x] **Burst Fire (Full Burst)**:
+    - [x] `useBurstFire()` — Fires ALL remaining shells. Normal type bonus.
+    - [x] Context trigger: Right Click after Overhead Smash (client + server).
+    - [x] Animation override and action key wired.
+- [x] **Combat Integration**:
+    - [x] BetterCombat weapon attributes: 5-hit combo (Thrust I → Thrust II → Rising Slash → Overhead Smash → Wide Sweep).
+    - [x] Weapon data config with motion values for all actions.
+    - [x] Client input hint tracks 5-hit combo position.
+- [x] **HUD**:
+    - [x] Shell icons (gold/dark, count from maxShells).
+    - [x] Wyrmstake icon (cyan/dark).
+    - [x] Wyvern's Fire 2-segment gauge with cooldown timer.
+    - [x] Move name display for all actions.
+- [x] **VFX**:
+    - [x] Shelling muzzle flash + impact particles.
+    - [x] Charged Shelling enhanced particles + explosion.
+    - [x] Burst Fire multi-shell blast particles.
+    - [x] Wyvern's Fire charge + explosion emitter + recoil.
+    - [x] Wyrmstake crit + smoke particles.
+- [x] **Input Handling**:
+    - [x] RMB: Shelling (tap) / Charged Shelling (hold).
+    - [x] Shift+RMB: Wyrmstake Cannon.
+    - [x] Special+LMB+RMB: Wyvern's Fire.
+    - [x] Alt key: Reload / Quick Reload.
+    - [x] Movement lock during WF charge (client + server).
+- [ ] **Wyrmstake Entity** (Placeholder — currently uses instant raycast):
+    - [ ] Create `WyrmstakeEntity` projectile that sticks to target.
+    - [ ] Implement multi-hit ticking damage over time.
+    - [ ] Implement delayed final explosion.
+- [ ] **Wyrmstake Full Blast** (Wilds mechanic):
+    - [ ] Fire all shells + Wyrmstake simultaneously.
+    - [ ] Multi Wyrmstake Full Blast follow-up.
+- [ ] **Focus Strike: Drake Auger** (Wilds mechanic):
+    - [ ] Drill attack on wounds → Wyrmstake finisher.
+- [ ] **Audio**:
+    - [ ] SFX: Shell fire, Reload clank, Wyvern Fire roar, Burst Fire rumble.
+- [ ] **Shelling Type Variants**:
+    - [ ] Register separate Long and Wide gunlance items.

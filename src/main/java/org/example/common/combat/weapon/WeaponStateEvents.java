@@ -391,6 +391,11 @@ public final class WeaponStateEvents {
             state.setGunlanceCooldown(state.getGunlanceCooldown() - 1);
         }
 
+        // Sync max shells based on held weapon's shelling type
+        if ("gunlance".equals(weaponId) && player.getMainHandItem().getItem() instanceof org.example.item.GunlanceItem gl) {
+            gl.syncMaxShells(state);
+        }
+
         if (state.getGunlanceWyvernfireCooldown() > 0) {
             state.setGunlanceWyvernfireCooldown(state.getGunlanceWyvernfireCooldown() - 1);
         } else if (state.getGunlanceWyvernFireGauge() < 2.0f) {

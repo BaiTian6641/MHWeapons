@@ -583,12 +583,14 @@ public final class ClientForgeEvents {
         
         // Use BetterCombat state for accurate combo index
         int comboCount = org.example.common.compat.BetterCombatAnimationBridge.resolveCurrentComboIndex(mc.player, true);
-        int next = comboCount % 3; // 3-hit combo
+        int next = comboCount % 5; // 5-hit combo: Thrust I -> Thrust II -> Rising Slash -> Overhead Smash -> Wide Sweep
 
         String actionKey = switch (next) {
             case 0 -> "gunlance_lateral_thrust_1";
             case 1 -> "gunlance_lateral_thrust_2";
-            case 2 -> "gunlance_wide_sweep";
+            case 2 -> "gunlance_rising_slash";
+            case 3 -> "gunlance_overhead_smash";
+            case 4 -> "gunlance_wide_sweep";
             default -> "gunlance_lateral_thrust_1";
         };
         combatState.setActionKey(actionKey);
@@ -622,6 +624,19 @@ public final class ClientForgeEvents {
                 // Provide brief feedback when insufficient gauge
                 if (state != null && state.getGunlanceWyvernFireGauge() < 1.0f) {
                     mc.player.displayClientMessage(net.minecraft.network.chat.Component.literal("Not enough Wyvern's Fire"), true);
+                }
+            }
+        }
+
+        // Burst Fire: Right Click after Overhead Smash (no shift, no special)
+        // Sends WEAPON action — server-side handler checks the "gunlance_overhead_smash" context
+        if (!specialDown && !mc.player.isShiftKeyDown() && rightDown && !glRightDown) {
+            PlayerCombatState combatState = CapabilityUtil.getPlayerCombatState(mc.player);
+            if (combatState != null && "gunlance_overhead_smash".equals(combatState.getActionKey())
+                    && combatState.getActionKeyTicks() > 0) {
+                PlayerWeaponState wState = CapabilityUtil.getPlayerWeaponState(mc.player);
+                if (wState != null && wState.getGunlanceShells() > 0) {
+                    ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON, true));
                 }
             }
         }

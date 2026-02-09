@@ -9,8 +9,13 @@
     "basic_attack": 1.0,
     "note_one": 1.0,
     "note_two": 1.0,
-    "note_three": 1.0,
-    "recital": 1.4
+    "note_three": 1.2,
+    "flourish": 0.8,
+    "hilt_stab": 0.6,
+    "recital": 1.4,
+    "performance_beat": 1.2,
+    "encore": 2.0,
+    "echo_resonance": 3.0
   },
   "noteQueueSize": 5,
   "fixedEchoBubble": "attack_affinity",

@@ -36,6 +36,32 @@ public class GunlanceItem extends GeoWeaponItem {
         return shellLevel;
     }
 
+    /**
+     * Returns the max shell capacity based on the weapon's shelling type.
+     * Normal: 6, Long: 4, Wide: 2 (MHWilds spec).
+     */
+    public int getMaxShellsForType() {
+        return switch (shellingType) {
+            case NORMAL -> 6;
+            case LONG -> 4;
+            case WIDE -> 2;
+        };
+    }
+
+    /**
+     * Ensures the player's weapon state has the correct maxShells for this weapon's type.
+     */
+    public void syncMaxShells(PlayerWeaponState state) {
+        int expected = getMaxShellsForType();
+        if (state.getGunlanceMaxShells() != expected) {
+            state.setGunlanceMaxShells(expected);
+            // Clamp current shells if over new max
+            if (state.getGunlanceShells() > expected) {
+                state.setGunlanceShells(expected);
+            }
+        }
+    }
+
     public void useShell(Level level, Player player, PlayerWeaponState state, boolean charged) {
         if (state.getGunlanceShells() <= 0) {
             return;
@@ -131,6 +157,7 @@ public class GunlanceItem extends GeoWeaponItem {
     }
 
     public void reload(Player player, PlayerWeaponState state, boolean full) {
+        syncMaxShells(state);
         state.setGunlanceShells(state.getGunlanceMaxShells());
         if (full) {
             state.setGunlanceHasStake(true);
@@ -138,30 +165,54 @@ public class GunlanceItem extends GeoWeaponItem {
     }
 
     public void quickReload(Player player, PlayerWeaponState state) {
+        syncMaxShells(state);
         if (state.getGunlanceShells() >= state.getGunlanceMaxShells()) {
             return;
         }
-        state.setGunlanceShells(state.getGunlanceShells() + 1);
+        int refill = Math.min(state.getGunlanceMaxShells(), state.getGunlanceShells() + 2);
+        state.setGunlanceShells(refill);
     }
 
     public void useBurstFire(Level level, Player player, PlayerWeaponState state) {
-        int shells = Math.min(3, state.getGunlanceShells());
+        int shells = state.getGunlanceShells();
         if (shells <= 0) {
             return;
         }
-        state.setGunlanceShells(state.getGunlanceShells() - shells);
-        state.setGunlanceCooldown(18);
+        state.setGunlanceShells(0); // Burst Fire consumes ALL remaining shells
+        state.setGunlanceCooldown(20);
 
         float baseDamage = 12.0f + (shellLevel * 4.0f);
-        if (shellingType == ShellingType.WIDE) baseDamage *= 1.15f;
+        // Normal type excels at Burst Fire (Full Burst)
+        if (shellingType == ShellingType.NORMAL) baseDamage *= 1.15f;
+        if (shellingType == ShellingType.WIDE) baseDamage *= 0.9f;
         double range = resolveShellRange();
         for (int i = 0; i < shells; i++) {
             boolean hit = performBlast(level, player, range, baseDamage);
             if (hit) {
                 addWyvernFireCharge(state, 0.06f);
             }
-            spawnShellParticles(level, player, range, false);
         }
+        spawnBurstFireParticles(level, player, range, shells);
+    }
+
+    private void spawnBurstFireParticles(Level level, Player player, double range, int shells) {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        Vec3 start = player.getEyePosition();
+        Vec3 dir = player.getLookAngle().normalize();
+        Vec3 muzzle = start.add(dir.scale(0.6));
+        Vec3 end = start.add(dir.scale(range));
+
+        serverLevel.sendParticles(ParticleTypes.FLAME,
+                muzzle.x, muzzle.y, muzzle.z,
+                shells * 4, 0.1, 0.1, 0.1, 0.12);
+        serverLevel.sendParticles(ParticleTypes.SMOKE,
+                muzzle.x, muzzle.y, muzzle.z,
+                shells * 3, 0.15, 0.15, 0.15, 0.08);
+        serverLevel.sendParticles(ParticleTypes.EXPLOSION,
+                end.x, end.y, end.z,
+                1, 0.15, 0.15, 0.15, 0.0);
     }
 
     private boolean performBlast(Level level, Player player, double range, float damage) {
