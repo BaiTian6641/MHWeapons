@@ -26,6 +26,16 @@ public final class DodgeSystem {
                 LongSwordHandler.handleForesightCounterSuccess(player, state, weaponState);
             }
         }
+        
+        // Iai Spirit Slash counter reward
+        if ("iai_spirit_slash".equals(state.getActionKey())) {
+            PlayerWeaponState weaponState = CapabilityUtil.getPlayerWeaponState(player);
+            ItemStack stack = player.getMainHandItem();
+            if (weaponState != null && stack.getItem() instanceof WeaponIdProvider weaponIdProvider
+                    && "longsword".equals(weaponIdProvider.getWeaponId())) {
+                LongSwordHandler.handleIaiSpiritCounterSuccess(player, state, weaponState);
+            }
+        }
         return true;
     }
 

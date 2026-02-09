@@ -151,6 +151,29 @@ public final class LongSwordHandler {
         }
     }
 
+    public static void handleIaiSpiritCounterSuccess(Player player, PlayerCombatState combatState, PlayerWeaponState weaponState) {
+        if (player == null || combatState == null || weaponState == null) {
+            return;
+        }
+        // Level Up on success
+        int next = Math.min(3, weaponState.getSpiritLevel() + 1);
+        weaponState.setSpiritLevel(next);
+        weaponState.setSpiritLevelTicks(resolveSpiritLevelMaxTicks(next));
+        weaponState.setSpiritGauge(0.0f);
+
+        // High Damage Hit
+        float mv = WeaponDataResolver.resolveMotionValue(player, "iai_spirit_slash", 4.0f);
+        // Iai Spirit Slash is a wide cross slash
+        applyLongSwordManualHit(player, 3.5, 1.5, mv);
+
+        if (player.level() instanceof ServerLevel serverLevel) {
+            // VFX
+            serverLevel.sendParticles(net.minecraft.core.particles.ParticleTypes.ENCHANTED_HIT, 
+                player.getX(), player.getY() + 1.0, player.getZ(), 
+                10, 0.5, 0.5, 0.5, 0.1);
+        }
+    }
+
     static void triggerSpiritReleaseSlash(Player player, PlayerCombatState combatState, PlayerWeaponState weaponState) {
         triggerSpiritReleaseSlash(player, combatState, weaponState, "spirit_release_slash", "bettercombat:two_handed_spin");
     }
@@ -607,7 +630,7 @@ public final class LongSwordHandler {
             double sheatheSpeedBonus = player.getAttributeValue(MHAttributes.SHEATHE_SPEED_BONUS.get());
             double sheatheSpeedMultiplier = Math.max(0.1D, 1.0D + sheatheSpeedBonus);
             int sheatheActionTicks = (int) Math.max(6, Math.round(20.0D / sheatheSpeedMultiplier));
-            int sheatheWindowTicks = (int) Math.max(20, Math.round(60.0D / sheatheSpeedMultiplier));
+            int sheatheWindowTicks = (int) Math.max(20, Math.round(100.0D / sheatheSpeedMultiplier));
             weaponState.setLongSwordSpecialSheathe(true);
             weaponState.setLongSwordSheatheTicks(sheatheWindowTicks);
             setAction(combatState, "special_sheathe", sheatheActionTicks);
