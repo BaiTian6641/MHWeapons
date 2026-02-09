@@ -112,8 +112,54 @@ public final class WeaponHudOverlay {
             guiGraphics.fill(x, y + 6, x + timerW, y + 8, timerColor);
         }
 
-        // Render Kinsect State Debug (Optional, smaller)
-        // ... kept minimal
+        // Render Charge Bar (when charging with Red extract)
+        if (state.isInsectCharging() && state.isInsectRed()) {
+            int chargeY = y + 10;
+            int chargeMaxW = slotW * 3 + gap * 2;
+            float chargeRatio = Math.min(1.0f, state.getInsectChargeTicks() / 40.0f);
+            int chargeFill = Math.round(chargeMaxW * chargeRatio);
+            guiGraphics.fill(x, chargeY, x + chargeMaxW, chargeY + 3, 0xAA000000);
+            int chargeColor = state.getInsectChargeTicks() >= 20 ? 0xFFFF5722 : 0xFFFF9800; // Orange → Red when ready
+            guiGraphics.fill(x, chargeY, x + chargeFill, chargeY + 3, chargeColor);
+            // Charge stage label
+            String chargeLabel = state.getInsectChargeTicks() >= 20 ? "MAX" : "Charging";
+            int labelW = font.width(chargeLabel);
+            guiGraphics.drawString(font, chargeLabel, xCenter - labelW / 2, chargeY + 5, chargeColor, true);
+        }
+
+        // Render Triple Finisher Ready indicator
+        if (state.getInsectTripleFinisherStage() > 0 && state.getInsectTripleFinisherTicks() > 0) {
+            String finLabel = "FINISHER READY";
+            int finW = font.width(finLabel);
+            int finY = y + (state.isInsectCharging() ? 20 : 10);
+            int finColor = (state.getInsectTripleFinisherTicks() % 10 < 5) ? 0xFFFFD740 : 0xFFFF6D00; // Flashing
+            guiGraphics.drawString(font, finLabel, xCenter - finW / 2, finY, finColor, true);
+        }
+
+        // Render Bounce Level indicator (when airborne)
+        if (state.getInsectAerialTicks() > 0 && state.getInsectAerialBounceLevel() > 0) {
+            String bounceLabel = "Vault Lv." + state.getInsectAerialBounceLevel();
+            int bounceW = font.width(bounceLabel);
+            guiGraphics.drawString(font, bounceLabel, xCenter - bounceW / 2, y - 8, 0xFF80DEEA, true);
+        }
+
+        // Render Kinsect Powder Type indicator
+        int powderType = state.getKinsectPowderType();
+        if (powderType > 0) {
+            String powderName = org.example.common.entity.KinsectPowderCloudEntity.getPowderName(powderType);
+            int powderColor = org.example.common.entity.KinsectPowderCloudEntity.getPowderHudColor(powderType);
+            String powderLabel = "\u25CF " + powderName; // ● symbol + name
+            guiGraphics.drawString(font, powderLabel, x, y - 12, powderColor, true);
+        }
+
+        // Render Mark Target indicator
+        if (state.getKinsectMarkedTargetId() > 0 && state.getKinsectMarkedTicks() > 0) {
+            String markLabel = "MARKED";
+            int markW = font.width(markLabel);
+            int markX = x + slotW * 3 + gap * 2 - markW;
+            int markColor = (state.getKinsectMarkedTicks() % 20 < 10) ? 0xFFFF4444 : 0xFFCC2222;
+            guiGraphics.drawString(font, markLabel, markX, y - 12, markColor, true);
+        }
     }
 
     private static void renderFocusCrosshair(GuiGraphics guiGraphics, int width, int height) {
@@ -218,10 +264,45 @@ public final class WeaponHudOverlay {
                 guiGraphics.drawString(font, "Spirit Lv " + state.getSpiritLevel(), x + barWidth + 6, y - 1, 0xFFFFFF, true);
             }
             case "dual_blades" -> {
-                int color = state.isDemonMode() ? 0xFFE53935 : 0xFFEC407A;
-                drawGauge(guiGraphics, x, y, barWidth, barHeight, state.getDemonGauge() / 100.0f, color);
-                String mode = state.isDemonMode() ? "Demon" : (state.isArchDemon() ? "Arch" : "Normal");
-                guiGraphics.drawString(font, "Mode: " + mode, x + barWidth + 6, y - 1, 0xFFFFFF, true);
+                // Row 1: Demon Gauge
+                int gaugeColor;
+                if (state.isDemonMode()) {
+                    gaugeColor = 0xFFE53935; // Red for Demon Mode
+                } else if (state.isArchDemon()) {
+                    gaugeColor = 0xFFFF6F00; // Orange for Archdemon
+                } else {
+                    gaugeColor = 0xFFEC407A; // Pink for Normal
+                }
+                drawGauge(guiGraphics, x, y, barWidth, barHeight, state.getDemonGauge() / 100.0f, gaugeColor);
+
+                // Mode label
+                String mode;
+                int modeColor;
+                if (state.isDemonMode()) {
+                    mode = "DEMON";
+                    modeColor = 0xFFFF1744;
+                } else if (state.isArchDemon()) {
+                    mode = "ARCHDEMON";
+                    modeColor = 0xFFFF6F00;
+                } else {
+                    mode = "Normal";
+                    modeColor = 0xFFFFFFFF;
+                }
+                guiGraphics.drawString(font, mode, x + barWidth + 6, y - 1, modeColor, true);
+
+                // Row 2: Demon Boost indicator (if active)
+                if (state.getDbDemonBoostTicks() > 0) {
+                    int boostY = y + barHeight + 3;
+                    float boostRatio = state.getDbDemonBoostTicks() / 200.0f;
+                    drawGauge(guiGraphics, x, boostY, barWidth, 4, boostRatio, 0xFF7C4DFF);
+                    guiGraphics.drawString(font, "BOOST", x + barWidth + 6, boostY - 1, 0xFF7C4DFF, true);
+                }
+
+                // Row 3: Blade Dance lock indicator
+                if (state.getDbBladeDanceLockTicks() > 0) {
+                    int lockY = y + barHeight + (state.getDbDemonBoostTicks() > 0 ? 12 : 3);
+                    guiGraphics.drawString(font, ">> BLADE DANCE <<", x, lockY, 0xFFFFD600, true);
+                }
             }
             case "switch_axe" -> {
                 // Row 1: Switch Gauge (resource for Sword Mode)
@@ -667,27 +748,32 @@ public final class WeaponHudOverlay {
                 specialCombineLine = "Special+Shift: " + specialKey + " (Dance)";
                 altCombineLine = "LMB+RMB (Note 3)";
             } else if ("insect_glaive".equals(weaponId)) {
-                weaponLine = "Weapon: LMB (Rising Slash)  |  Combo: LMB > LMB > LMB > Alt";
-                altLine = "Alt: " + altKey + " (Overhead Smash / Finisher)";
-                specialLine = "Special: " + specialKey + " (Vault / Kinsect Aim)";
-                specialCombineLine = "Special+Shift: " + specialKey + " (Kinsect Recall)";
-                altCombineLine = "Focus Mode: LMB (Kinsect Combo)";
-
-                // Kinsect key hints and status indicators
-                String kinsectLaunch = ClientKeybinds.KINSECT_LAUNCH.getTranslatedKeyMessage().getString();
-                String kinsectRecall = ClientKeybinds.KINSECT_RECALL.getTranslatedKeyMessage().getString();
-                String kinsectLine = "Kinsect: Launch " + kinsectLaunch + " | Recall " + kinsectRecall;
-                if (state != null) {
-                    if (state.getKinsectEntityId() > 0) {
-                        kinsectLine += "  (Active)";
-                    } else if (state.getInsectExtractTicks() > 0) {
-                        kinsectLine += "  (Extracts Ready)";
-                    } else {
-                        kinsectLine += "  (Ready)";
-                    }
+                weaponLine = "LMB: Combo (Rising > Reaping > Double)";
+                altLine = "RMB: Wide Sweep / Overhead";
+                if (state != null && state.isInsectRed()) {
+                    altLine = "RMB: Hold=Charge | Shift+RMB=Dodge";
                 }
-                // append kinsect hint as a separate alt combine line to keep layout tidy when present
-                altCombineLine = altCombineLine + "  |  " + kinsectLine;
+                specialLine = specialKey + ": Vault";
+                if (state != null && state.isInsectCharging()) {
+                    int ct = state.getInsectChargeTicks();
+                    specialCombineLine = "Charging... (" + (ct / 20) + "s) Release RMB!";
+                } else if (state != null && state.getInsectTripleFinisherStage() > 0) {
+                    specialCombineLine = "Finisher Ready! Press RMB";
+                } else if (state != null && state.getKinsectMarkedTargetId() > 0) {
+                    specialCombineLine = "Kinsect: Marked! (auto-attacking)";
+                } else {
+                    specialCombineLine = "Kinsect: Shift+Launch=Mark Target";
+                }
+                altCombineLine = null;
+            } else if ("dual_blades".equals(weaponId)) {
+                boolean dbDemon = state != null && state.isDemonMode();
+                boolean dbArch = state != null && state.isArchDemon();
+                String mode = dbDemon ? "Demon" : dbArch ? "Archdemon" : "Normal";
+                weaponLine = "Weapon: " + weaponKey + " (" + mode + " Combo)";
+                altLine = "Alt: " + altKey + " (" + (dbDemon ? "Blade Dance" : dbArch ? "Demon Flurry" : "Lunging Strike") + ")";
+                specialLine = "Special: " + specialKey + " (" + (dbDemon ? "Exit" : "Enter") + " Demon Mode)";
+                specialCombineLine = "Focus+Attack: Turning Tide";
+                altCombineLine = null;
             } else if ("gunlance".equals(weaponId)) {
                 weaponLine = "Weapon: RMB (Shelling | Hold: Charged | Shift: Wyrmstake)";
                 altLine = "Alt: " + altKey + " (Reload | Shift: Full Reload | Quick: after attack)";
@@ -871,14 +957,19 @@ public final class WeaponHudOverlay {
                     case "basic_attack": return "Rising Slash"; // Map generic BC basic attack to IG canonical starter
                     case "leaping_slash": return "Leaping Slash";
                     case "tornado_slash": return "Tornado Slash";
-                    case "strong_descending_slash": return "Strong Descending Slash";
                     case "descending_slash": return "Descending Slash";
                     case "rising_spiral_slash": return "Rising Spiral Slash";
+                    case "descending_thrust": return "Descending Thrust";
+                    case "charging": return "Charging...";
                     case "wide_sweep": return "Wide Sweep";
                     case "vault": return "Vault";
                     case "aerial_advancing_slash": return "Jumping Advancing Slash";
                     case "aerial_slash": return "Jumping Slash";
                     case "midair_evade": return "Midair Evade";
+                    case "kinsect_harvest": return "Kinsect: Harvest";
+                    case "kinsect_recall": return "Kinsect: Recall";
+                    case "kinsect_mark": return "Kinsect: Mark Target";
+                    case "dodge_slash": return "Dodge Slash";
                     default: return null;
                 }
             }
@@ -906,6 +997,93 @@ public final class WeaponHudOverlay {
                     case "basic_attack": return resolveTonfaBasicAttackLabel(player, state);
                     default: return null;
                 }
+            }
+            case "dual_blades": {
+                // Mode toggles & specials (no combo progress)
+                switch (key) {
+                    case "demon_mode": return "Enter Demon Mode";
+                    case "exit_demon": return "Exit Demon Mode";
+                    case "demon_dodge": return "Demon Dodge";
+                    case "demon_boost_activate": return "Demon Boost";
+                    case "db_turning_tide": return "Turning Tide";
+                    case "basic_attack": {
+                        boolean inDemon = state != null && state.isDemonMode();
+                        boolean inArch = state != null && state.isArchDemon();
+                        if (inDemon) {
+                            int step = state != null ? state.getDbDemonComboIndex() + 1 : 1;
+                            String name = switch (Math.max(1, Math.min(3, step))) {
+                                case 1 -> "Demon Fangs";
+                                case 2 -> "Twofold Demon Slash";
+                                default -> "Sixfold Demon Slash";
+                            };
+                            return name + " " + step + "/3";
+                        }
+                        if (inArch) {
+                            int step = state != null ? state.getDbComboIndex() + 1 : 1;
+                            String name = switch (Math.max(1, Math.min(3, step))) {
+                                case 1 -> "Archdemon Slash I";
+                                case 2 -> "Archdemon Slash II";
+                                default -> "Archdemon Slash III";
+                            };
+                            return name + " " + step + "/3";
+                        }
+                        int step = state != null ? state.getDbComboIndex() + 1 : 1;
+                        String name = switch (Math.max(1, Math.min(3, step))) {
+                            case 1 -> "Double Slash";
+                            case 2 -> "Return Stroke";
+                            default -> "Circle Slash";
+                        };
+                        return name + " " + step + "/3";
+                    }
+                    default: { /* fall through to combo logic */ }
+                }
+                // Normal combo (LMB): Double Slash > Return Stroke > Circle Slash
+                if (key.startsWith("db_double_slash") || key.startsWith("db_return_stroke") || key.startsWith("db_circle_slash")) {
+                    int step = state != null ? state.getDbComboIndex() + 1 : 1;
+                    String name = switch (key) {
+                        case "db_double_slash" -> "Double Slash";
+                        case "db_return_stroke" -> "Return Stroke";
+                        default -> "Circle Slash";
+                    };
+                    return name + " " + step + "/3";
+                }
+                // Demon combo (LMB): Demon Fangs > Twofold > Sixfold
+                if (key.startsWith("db_demon_fangs") || key.startsWith("db_twofold_slash") || key.startsWith("db_sixfold_slash")) {
+                    int step = state != null ? state.getDbDemonComboIndex() + 1 : 1;
+                    String name = switch (key) {
+                        case "db_demon_fangs" -> "Demon Fangs";
+                        case "db_twofold_slash" -> "Twofold Demon Slash";
+                        default -> "Sixfold Demon Slash";
+                    };
+                    return name + " " + step + "/3";
+                }
+                // Archdemon combo (LMB)
+                if (key.startsWith("db_arch_slash")) {
+                    int step = state != null ? state.getDbComboIndex() + 1 : 1;
+                    String name = switch (key) {
+                        case "db_arch_slash_1" -> "Archdemon Slash I";
+                        case "db_arch_slash_2" -> "Archdemon Slash II";
+                        default -> "Archdemon Slash III";
+                    };
+                    return name + " " + step + "/3";
+                }
+                // Blade Dance stages
+                if (key.startsWith("db_blade_dance")) {
+                    int stage = state != null ? state.getDbDemonComboIndex() + 1 : 1;
+                    return "Blade Dance " + stage + "/3";
+                }
+                // Demon Flurry stages
+                if (key.startsWith("db_demon_flurry")) {
+                    int stage = state != null ? state.getDbDemonComboIndex() + 1 : 1;
+                    return "Demon Flurry " + stage + "/2";
+                }
+                // Lunging Strike combo
+                if ("db_lunging_strike".equals(key) || "db_roundslash".equals(key)) {
+                    int step = state != null ? state.getDbComboIndex() + 1 : 1;
+                    String name = "db_lunging_strike".equals(key) ? "Lunging Strike" : "Roundslash";
+                    return name + " " + step + "/2";
+                }
+                return null;
             }
             case "switch_axe": {
                 switch (key) {

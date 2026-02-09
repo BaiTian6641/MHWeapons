@@ -48,6 +48,8 @@ public final class ClientForgeEvents {
     private static boolean hornRightDown;
     private static boolean glLeftDown;
     private static boolean glRightDown;
+    private static boolean igRmbDown;
+    private static boolean igChargeSent;
 
     @SubscribeEvent
     public static void onComputeFov(net.minecraftforge.client.event.ComputeFovModifierEvent event) {
@@ -193,6 +195,7 @@ public final class ClientForgeEvents {
         if (!isAnimating) {
             handleHuntingHornMouseInput(Minecraft.getInstance());
             handleGunlanceMouseInput(Minecraft.getInstance());
+            handleInsectGlaiveRmbInput(Minecraft.getInstance());
         }
 
         if ("longsword".equals(currentWeaponId) && nowAttackDown) {
@@ -367,21 +370,27 @@ public final class ClientForgeEvents {
                 return; // Allow default item use for shelling/WSC without forcing attacks
             }
             if ("insect_glaive".equals(weaponId)) {
-                // RMB should be WEAPON_ALT (Wide Sweep / Overhead Smash), without triggering LMB
+                // RMB press: send WEAPON_ALT true and start hold tracking for charge
                 
                 // Update local state for Better Combat prediction
                 PlayerWeaponState state = CapabilityUtil.getPlayerWeaponState(mc.player);
                 PlayerCombatState combatState = CapabilityUtil.getPlayerCombatState(mc.player);
                 if (state != null && combatState != null) {
-                    int window = 28; // Matching the JSON comboWindowTicks
-                    boolean overheadReady = (mc.player.tickCount - state.getInsectComboTick()) <= window
-                            && state.getInsectComboIndex() >= 2;
-                    String action = overheadReady ? "overhead_smash" : "wide_sweep";
-                    combatState.setActionKey(action);
-                    combatState.setActionKeyTicks(8);
+                    if (state.isInsectRed() && state.getInsectTripleFinisherStage() == 0) {
+                        combatState.setActionKey("charging");
+                        combatState.setActionKeyTicks(8);
+                    } else {
+                        int window = 28;
+                        boolean overheadReady = (mc.player.tickCount - state.getInsectComboTick()) <= window
+                                && state.getInsectComboIndex() >= 2;
+                        String action = overheadReady ? "overhead_smash" : "wide_sweep";
+                        combatState.setActionKey(action);
+                        combatState.setActionKeyTicks(8);
+                    }
                 }
 
                 ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON_ALT, true));
+                igRmbDown = true; // Start hold tracking for charge release
                 event.setCanceled(true);
                 return;
             }
@@ -398,6 +407,12 @@ public final class ClientForgeEvents {
                 event.setCanceled(true);
                 return;
             }
+            if ("dual_blades".equals(weaponId)) {
+                // RMB -> WEAPON_ALT for Blade Dance (Demon) / Demon Flurry (Arch) / Lunging Strike (Normal)
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON_ALT, true));
+                event.setCanceled(true);
+                return;
+            }
         }
         if (!(mc.player.getMainHandItem().getItem() instanceof org.example.item.GeoWeaponItem)) {
             return;
@@ -409,6 +424,59 @@ public final class ClientForgeEvents {
             KeyMapping.click(attackKey);
         }
         event.setCanceled(true);
+    }
+
+    /**
+     * Track RMB hold/release for Insect Glaive charge mechanic.
+     * Similar to LongSword's charge pattern: detect hold, suppress BC auto-attacks,
+     * and send WEAPON_ALT false on release to trigger charge release on server.
+     * Also detects LMB+RMB simultaneous for instant Descending Slash shortcut.
+     */
+    @SuppressWarnings("null")
+    private static void handleInsectGlaiveRmbInput(Minecraft mc) {
+        if (mc == null || mc.player == null) {
+            igRmbDown = false;
+            igChargeSent = false;
+            return;
+        }
+        if (!(mc.player.getMainHandItem().getItem() instanceof WeaponIdProvider weaponIdProvider)
+                || !"insect_glaive".equals(weaponIdProvider.getWeaponId())) {
+            igRmbDown = false;
+            igChargeSent = false;
+            return;
+        }
+
+        boolean rmbDown = mc.options.keyUse.isDown();
+        boolean lmbDown = mc.mouseHandler.isLeftPressed();
+
+        // LMB+RMB simultaneous: instant Descending Slash (shortcut, no charge required)
+        // Only trigger on the tick both become pressed together, and Red extract is needed
+        if (lmbDown && rmbDown && !igChargeSent) {
+            PlayerWeaponState state = CapabilityUtil.getPlayerWeaponState(mc.player);
+            if (state != null && state.isInsectRed() && !state.isInsectCharging()) {
+                // Send CHARGE true to signal instant descending slash
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.CHARGE, true));
+                igChargeSent = true;
+                mc.options.keyAttack.setDown(false);
+                mc.options.keyUse.setDown(false);
+                igRmbDown = rmbDown;
+                return;
+            }
+        }
+
+        // Suppress BC auto-attacks while RMB is held (prevents spam from Better Combat)
+        if (rmbDown && igRmbDown) {
+            mc.options.keyUse.setDown(false);
+        }
+
+        // Detect release: was down, now released
+        if (igRmbDown && !rmbDown) {
+            // Send WEAPON_ALT release to trigger charge release on server
+            ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON_ALT, false));
+            igChargeSent = false;
+        }
+
+        igRmbDown = rmbDown;
     }
 
 

@@ -19,6 +19,7 @@ import org.example.item.MHTiers;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import org.example.common.entity.KinsectEntity;
+import org.example.common.entity.KinsectPowderCloudEntity;
 import org.example.common.entity.EchoBubbleEntity;
 import java.util.HashMap;
 import java.util.Map;
@@ -233,6 +234,12 @@ public final class MHWeaponsItems {
             () -> EntityType.Builder.<EchoBubbleEntity>of(EchoBubbleEntity::new, MobCategory.MISC)
                     .sized(1.5f, 0.5f)
                     .build("echo_bubble"));
+
+    public static final RegistryObject<EntityType<KinsectPowderCloudEntity>> KINSECT_POWDER_CLOUD = ENTITIES.register("kinsect_powder_cloud",
+            () -> EntityType.Builder.<KinsectPowderCloudEntity>of(KinsectPowderCloudEntity::new, MobCategory.MISC)
+                    .sized(0.5f, 0.5f)
+                    .fireImmune()
+                    .build("kinsect_powder_cloud"));
 
         private static Map<String, RegistryObject<Item>> registerWildsJewels(String[] ids) {
                 Map<String, RegistryObject<Item>> map = new HashMap<>();

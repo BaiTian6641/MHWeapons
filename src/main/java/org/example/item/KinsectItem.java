@@ -11,8 +11,13 @@ public class KinsectItem extends Item {
     private final float damage;
     private final MHDamageType damageType;
     private final String element;
+    private final int powderType; // 0=None, 1=Blast, 2=Poison, 3=Paralysis, 4=Heal
 
     public KinsectItem(Properties properties, int maxExtracts, double speed, double range, float damage, MHDamageType damageType, String element) {
+        this(properties, maxExtracts, speed, range, damage, damageType, element, 1);
+    }
+
+    public KinsectItem(Properties properties, int maxExtracts, double speed, double range, float damage, MHDamageType damageType, String element, int powderType) {
         super(properties);
         this.maxExtracts = maxExtracts;
         this.speed = speed;
@@ -20,6 +25,7 @@ public class KinsectItem extends Item {
         this.damage = damage;
         this.damageType = damageType;
         this.element = element;
+        this.powderType = powderType;
     }
 
     public int getMaxExtracts() {
@@ -44,5 +50,9 @@ public class KinsectItem extends Item {
 
     public String getElement() {
         return element != null ? element : MHWeaponsConfig.KINSECT_ELEMENT.get();
+    }
+
+    public int getPowderType() {
+        return powderType;
     }
 }

@@ -15,6 +15,12 @@ public final class PlayerWeaponState {
     private float demonGauge;
     private boolean demonMode;
     private boolean archDemon;
+    private int dbComboIndex;
+    private int dbComboTick;
+    private int dbDemonComboIndex;
+    private int dbDemonComboTick;
+    private int dbBladeDanceLockTicks;
+    private int dbDemonBoostTicks;
 
     private int hammerChargeLevel;
     private int hammerChargeTicks;
@@ -84,8 +90,15 @@ public final class PlayerWeaponState {
     private int insectTripleFinisherStage; // 0 = none, 1 = tornado started, 2 = descending started
     private int insectTripleFinisherTicks; // Timeout for finisher input window
     private int insectAerialTicks;
+    private int insectAerialBounceLevel; // 0-2, increases aerial attack power per Vaulting Dance
+    private boolean insectCharging; // true while holding RMB with Red extract
+    private int insectChargeTicks; // charge buildup counter
     private int insectComboIndex;
     private int insectComboTick;
+    private int insectWhiteJumpBoostCooldown;
+    private int kinsectPowderType; // 0=None, 1=Blast, 2=Poison, 3=Paralysis, 4=Heal
+    private int kinsectMarkedTargetId = -1;
+    private int kinsectMarkedTicks;
 
     private boolean tonfaShortMode;
     private float tonfaComboGauge;
@@ -251,6 +264,74 @@ public final class PlayerWeaponState {
     public void setArchDemon(boolean archDemon) {
         if (this.archDemon != archDemon) {
             this.archDemon = archDemon;
+            markDirty();
+        }
+    }
+
+    public int getDbComboIndex() {
+        return dbComboIndex;
+    }
+
+    public void setDbComboIndex(int dbComboIndex) {
+        if (this.dbComboIndex != dbComboIndex) {
+            this.dbComboIndex = dbComboIndex;
+            markDirty();
+        }
+    }
+
+    public int getDbComboTick() {
+        return dbComboTick;
+    }
+
+    public void setDbComboTick(int dbComboTick) {
+        if (this.dbComboTick != dbComboTick) {
+            this.dbComboTick = dbComboTick;
+            markDirty();
+        }
+    }
+
+    public int getDbDemonComboIndex() {
+        return dbDemonComboIndex;
+    }
+
+    public void setDbDemonComboIndex(int dbDemonComboIndex) {
+        if (this.dbDemonComboIndex != dbDemonComboIndex) {
+            this.dbDemonComboIndex = dbDemonComboIndex;
+            markDirty();
+        }
+    }
+
+    public int getDbDemonComboTick() {
+        return dbDemonComboTick;
+    }
+
+    public void setDbDemonComboTick(int dbDemonComboTick) {
+        if (this.dbDemonComboTick != dbDemonComboTick) {
+            this.dbDemonComboTick = dbDemonComboTick;
+            markDirty();
+        }
+    }
+
+    public int getDbBladeDanceLockTicks() {
+        return dbBladeDanceLockTicks;
+    }
+
+    public void setDbBladeDanceLockTicks(int dbBladeDanceLockTicks) {
+        int clamped = Math.max(0, dbBladeDanceLockTicks);
+        if (this.dbBladeDanceLockTicks != clamped) {
+            this.dbBladeDanceLockTicks = clamped;
+            markDirty();
+        }
+    }
+
+    public int getDbDemonBoostTicks() {
+        return dbDemonBoostTicks;
+    }
+
+    public void setDbDemonBoostTicks(int dbDemonBoostTicks) {
+        int clamped = Math.max(0, dbDemonBoostTicks);
+        if (this.dbDemonBoostTicks != clamped) {
+            this.dbDemonBoostTicks = clamped;
             markDirty();
         }
     }
@@ -990,6 +1071,41 @@ public final class PlayerWeaponState {
         }
     }
 
+    public int getInsectAerialBounceLevel() {
+        return insectAerialBounceLevel;
+    }
+
+    public void setInsectAerialBounceLevel(int insectAerialBounceLevel) {
+        int clamped = Math.max(0, Math.min(2, insectAerialBounceLevel));
+        if (this.insectAerialBounceLevel != clamped) {
+            this.insectAerialBounceLevel = clamped;
+            markDirty();
+        }
+    }
+
+    public boolean isInsectCharging() {
+        return insectCharging;
+    }
+
+    public void setInsectCharging(boolean insectCharging) {
+        if (this.insectCharging != insectCharging) {
+            this.insectCharging = insectCharging;
+            markDirty();
+        }
+    }
+
+    public int getInsectChargeTicks() {
+        return insectChargeTicks;
+    }
+
+    public void setInsectChargeTicks(int insectChargeTicks) {
+        int clamped = Math.max(0, insectChargeTicks);
+        if (this.insectChargeTicks != clamped) {
+            this.insectChargeTicks = clamped;
+            markDirty();
+        }
+    }
+
     public boolean isTonfaShortMode() {
         return tonfaShortMode;
     }
@@ -1264,6 +1380,12 @@ public final class PlayerWeaponState {
         demonGauge = other.demonGauge;
         demonMode = other.demonMode;
         archDemon = other.archDemon;
+        dbComboIndex = other.dbComboIndex;
+        dbComboTick = other.dbComboTick;
+        dbDemonComboIndex = other.dbDemonComboIndex;
+        dbDemonComboTick = other.dbDemonComboTick;
+        dbBladeDanceLockTicks = other.dbBladeDanceLockTicks;
+        dbDemonBoostTicks = other.dbDemonBoostTicks;
         hammerChargeLevel = other.hammerChargeLevel;
         hammerChargeTicks = other.hammerChargeTicks;
         hammerPowerCharge = other.hammerPowerCharge;
@@ -1321,8 +1443,15 @@ public final class PlayerWeaponState {
         insectTripleFinisherStage = other.insectTripleFinisherStage;
         insectTripleFinisherTicks = other.insectTripleFinisherTicks;
         insectAerialTicks = other.insectAerialTicks;
+        insectAerialBounceLevel = other.insectAerialBounceLevel;
+        insectCharging = other.insectCharging;
+        insectChargeTicks = other.insectChargeTicks;
         insectComboIndex = other.insectComboIndex;
         insectComboTick = other.insectComboTick;
+        insectWhiteJumpBoostCooldown = other.insectWhiteJumpBoostCooldown;
+        kinsectPowderType = other.kinsectPowderType;
+        kinsectMarkedTargetId = other.kinsectMarkedTargetId;
+        kinsectMarkedTicks = other.kinsectMarkedTicks;
         tonfaShortMode = other.tonfaShortMode;
         tonfaComboGauge = other.tonfaComboGauge;
         tonfaFlyingTicks = other.tonfaFlyingTicks;
@@ -1383,6 +1512,12 @@ public final class PlayerWeaponState {
         tag.putFloat("demonGauge", demonGauge);
         tag.putBoolean("demonMode", demonMode);
         tag.putBoolean("archDemon", archDemon);
+        tag.putInt("dbComboIndex", dbComboIndex);
+        tag.putInt("dbComboTick", dbComboTick);
+        tag.putInt("dbDemonComboIndex", dbDemonComboIndex);
+        tag.putInt("dbDemonComboTick", dbDemonComboTick);
+        tag.putInt("dbBladeDanceLockTicks", dbBladeDanceLockTicks);
+        tag.putInt("dbDemonBoostTicks", dbDemonBoostTicks);
         tag.putInt("hammerChargeLevel", hammerChargeLevel);
         tag.putInt("hammerChargeTicks", hammerChargeTicks);
         tag.putBoolean("hammerPowerCharge", hammerPowerCharge);
@@ -1440,8 +1575,15 @@ public final class PlayerWeaponState {
         tag.putInt("insectTripleFinisherStage", insectTripleFinisherStage);
         tag.putInt("insectTripleFinisherTicks", insectTripleFinisherTicks);
         tag.putInt("insectAerialTicks", insectAerialTicks);
+        tag.putInt("insectAerialBounceLevel", insectAerialBounceLevel);
+        tag.putBoolean("insectCharging", insectCharging);
+        tag.putInt("insectChargeTicks", insectChargeTicks);
         tag.putInt("insectComboIndex", insectComboIndex);
         tag.putInt("insectComboTick", insectComboTick);
+        tag.putInt("insectWhiteJumpBoostCooldown", insectWhiteJumpBoostCooldown);
+        tag.putInt("kinsectPowderType", kinsectPowderType);
+        tag.putInt("kinsectMarkedTargetId", kinsectMarkedTargetId);
+        tag.putInt("kinsectMarkedTicks", kinsectMarkedTicks);
         tag.putBoolean("tonfaShortMode", tonfaShortMode);
         tag.putFloat("tonfaComboGauge", tonfaComboGauge);
         tag.putInt("tonfaFlyingTicks", tonfaFlyingTicks);
@@ -1501,6 +1643,12 @@ public final class PlayerWeaponState {
         demonGauge = tag.getFloat("demonGauge");
         demonMode = tag.getBoolean("demonMode");
         archDemon = tag.getBoolean("archDemon");
+        dbComboIndex = tag.getInt("dbComboIndex");
+        dbComboTick = tag.getInt("dbComboTick");
+        dbDemonComboIndex = tag.getInt("dbDemonComboIndex");
+        dbDemonComboTick = tag.getInt("dbDemonComboTick");
+        dbBladeDanceLockTicks = tag.getInt("dbBladeDanceLockTicks");
+        dbDemonBoostTicks = tag.getInt("dbDemonBoostTicks");
         hammerChargeLevel = tag.getInt("hammerChargeLevel");
         hammerChargeTicks = tag.getInt("hammerChargeTicks");
         hammerPowerCharge = tag.getBoolean("hammerPowerCharge");
@@ -1558,8 +1706,15 @@ public final class PlayerWeaponState {
         insectTripleFinisherStage = tag.getInt("insectTripleFinisherStage");
         insectTripleFinisherTicks = tag.getInt("insectTripleFinisherTicks");
         insectAerialTicks = tag.getInt("insectAerialTicks");
+        insectAerialBounceLevel = tag.contains("insectAerialBounceLevel", Tag.TAG_INT) ? tag.getInt("insectAerialBounceLevel") : 0;
+        insectCharging = tag.getBoolean("insectCharging");
+        insectChargeTicks = tag.contains("insectChargeTicks", Tag.TAG_INT) ? tag.getInt("insectChargeTicks") : 0;
         insectComboIndex = tag.contains("insectComboIndex", Tag.TAG_INT) ? tag.getInt("insectComboIndex") : 0;
         insectComboTick = tag.contains("insectComboTick", Tag.TAG_INT) ? tag.getInt("insectComboTick") : 0;
+        insectWhiteJumpBoostCooldown = tag.contains("insectWhiteJumpBoostCooldown", Tag.TAG_INT) ? tag.getInt("insectWhiteJumpBoostCooldown") : 0;
+        kinsectPowderType = tag.contains("kinsectPowderType", Tag.TAG_INT) ? tag.getInt("kinsectPowderType") : 0;
+        kinsectMarkedTargetId = tag.contains("kinsectMarkedTargetId", Tag.TAG_INT) ? tag.getInt("kinsectMarkedTargetId") : -1;
+        kinsectMarkedTicks = tag.contains("kinsectMarkedTicks", Tag.TAG_INT) ? tag.getInt("kinsectMarkedTicks") : 0;
         tonfaShortMode = tag.getBoolean("tonfaShortMode");
         tonfaComboGauge = tag.getFloat("tonfaComboGauge");
         tonfaFlyingTicks = tag.getInt("tonfaFlyingTicks");
@@ -1855,6 +2010,50 @@ public final class PlayerWeaponState {
     public void setKinsectEntityId(int kinsectEntityId) {
         if (this.kinsectEntityId != kinsectEntityId) {
             this.kinsectEntityId = kinsectEntityId;
+            markDirty();
+        }
+    }
+
+    public int getKinsectPowderType() {
+        return kinsectPowderType;
+    }
+
+    public void setKinsectPowderType(int kinsectPowderType) {
+        if (this.kinsectPowderType != kinsectPowderType) {
+            this.kinsectPowderType = kinsectPowderType;
+            markDirty();
+        }
+    }
+
+    public int getKinsectMarkedTargetId() {
+        return kinsectMarkedTargetId;
+    }
+
+    public void setKinsectMarkedTargetId(int kinsectMarkedTargetId) {
+        if (this.kinsectMarkedTargetId != kinsectMarkedTargetId) {
+            this.kinsectMarkedTargetId = kinsectMarkedTargetId;
+            markDirty();
+        }
+    }
+
+    public int getKinsectMarkedTicks() {
+        return kinsectMarkedTicks;
+    }
+
+    public void setKinsectMarkedTicks(int kinsectMarkedTicks) {
+        if (this.kinsectMarkedTicks != kinsectMarkedTicks) {
+            this.kinsectMarkedTicks = kinsectMarkedTicks;
+            markDirty();
+        }
+    }
+
+    public int getInsectWhiteJumpBoostCooldown() {
+        return insectWhiteJumpBoostCooldown;
+    }
+
+    public void setInsectWhiteJumpBoostCooldown(int insectWhiteJumpBoostCooldown) {
+        if (this.insectWhiteJumpBoostCooldown != insectWhiteJumpBoostCooldown) {
+            this.insectWhiteJumpBoostCooldown = insectWhiteJumpBoostCooldown;
             markDirty();
         }
     }

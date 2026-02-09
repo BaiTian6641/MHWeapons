@@ -368,18 +368,20 @@ public final class WeaponStateEvents {
             }
         }
 
-        if (state.isDemonMode()) {
-            state.addDemonGauge(-0.4f);
-            if (state.getDemonGauge() <= 0.0f) {
-                state.setDemonMode(false);
+        // Dual Blades: delegate all tick logic to DualBladesHandler
+        if ("dual_blades".equals(weaponId)) {
+            DualBladesHandler.tick(player, state);
+        } else {
+            // Non-DB demon mode (legacy support)
+            if (state.isDemonMode()) {
+                state.addDemonGauge(-0.4f);
+                if (state.getDemonGauge() <= 0.0f) {
+                    state.setDemonMode(false);
+                }
             }
-            if ("dual_blades".equals(weaponId)) {
-                player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 40, 1, false, false));
-                player.causeFoodExhaustion(0.015f);
-            }
+            boolean arch = !state.isDemonMode() && state.getDemonGauge() >= 50.0f;
+            state.setArchDemon(arch);
         }
-        boolean arch = !state.isDemonMode() && state.getDemonGauge() >= 50.0f;
-        state.setArchDemon(arch);
 
         if (state.getHammerChargeTicks() > 0) {
             state.setHammerChargeTicks(state.getHammerChargeTicks() - 1);
@@ -733,7 +735,7 @@ public final class WeaponStateEvents {
 
         switch (weaponId) {
             case "longsword" -> state.addSpiritGauge(8.0f);
-            case "dual_blades" -> state.addDemonGauge(5.0f);
+            case "dual_blades" -> DualBladesHandler.onHit(player, state, event.getEntity(), event.getAmount());
             case "switch_axe" -> {
                 // Amp gauge gain on hit
                 float ampGain = state.isSwitchAxeSwordMode() ? 8.0f : 5.0f;

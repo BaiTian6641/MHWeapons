@@ -5,6 +5,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import org.example.common.capability.player.PlayerCombatState;
 import org.example.common.capability.player.PlayerWeaponState;
+import org.example.common.combat.weapon.DualBladesHandler;
 import org.example.common.combat.weapon.LongSwordHandler;
 import org.example.common.util.CapabilityUtil;
 import org.example.item.WeaponIdProvider;
@@ -34,6 +35,17 @@ public final class DodgeSystem {
             if (weaponState != null && stack.getItem() instanceof WeaponIdProvider weaponIdProvider
                     && "longsword".equals(weaponIdProvider.getWeaponId())) {
                 LongSwordHandler.handleIaiSpiritCounterSuccess(player, state, weaponState);
+            }
+        }
+
+        // Dual Blades: Perfect Evade in Demon Dodge → Demon Boost Mode
+        if ("demon_dodge".equals(state.getActionKey())) {
+            PlayerWeaponState weaponState = CapabilityUtil.getPlayerWeaponState(player);
+            ItemStack stack = player.getMainHandItem();
+            if (weaponState != null && stack.getItem() instanceof WeaponIdProvider weaponIdProvider
+                    && "dual_blades".equals(weaponIdProvider.getWeaponId())
+                    && (weaponState.isDemonMode() || weaponState.isArchDemon())) {
+                DualBladesHandler.activateDemonBoost(player, state, weaponState);
             }
         }
         return true;

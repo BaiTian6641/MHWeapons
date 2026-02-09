@@ -445,13 +445,67 @@ public final class ActionKeyEvents {
                     || "basic_attack".equals(state.getActionKey())
                     || "magnet_cut".equals(state.getActionKey())
                     || "magnet_impact".equals(state.getActionKey()));
-        if (state.getActionKey() != null && !allowMagnetOverride) {
+        boolean allowDbOverride = "dual_blades".equals(weaponId)
+                && (state.getActionKey() == null
+                    || "basic_attack".equals(state.getActionKey())
+                    || (state.getActionKey() != null && state.getActionKey().startsWith("db_") && state.getActionKeyTicks() <= 0));
+        if (state.getActionKey() != null && !allowMagnetOverride && !allowDbOverride) {
             return;
         }
         if (weaponState != null && weaponItem != null) {
-            if ("dual_blades".equals(weaponId) && (weaponState.isDemonMode() || weaponState.isArchDemon())) {
-                state.setActionKey("demon_attack");
-                state.setActionKeyTicks(10);
+            // Dual Blades: advance LMB combo (like MagnetSpike, server-side combo tracking)
+            if ("dual_blades".equals(weaponId)) {
+                // Block input while an action is still active (animation lock)
+                if (state.getActionKey() != null && !"basic_attack".equals(state.getActionKey())
+                        && state.getActionKeyTicks() > 0) {
+                    return;
+                }
+                boolean inDemon = weaponState.isDemonMode();
+                boolean inArch = weaponState.isArchDemon();
+                int window = WeaponDataResolver.resolveInt(player, null, "comboWindowTicks", 12);
+                if (inDemon) {
+                    int lastTick = weaponState.getDbDemonComboTick();
+                    int current = weaponState.getDbDemonComboIndex();
+                    int next = (player.tickCount - lastTick) > window ? 0 : (current + 1) % 3;
+                    weaponState.setDbDemonComboIndex(next);
+                    weaponState.setDbDemonComboTick(player.tickCount);
+                    String actionKey = switch (next) {
+                        case 0 -> "db_demon_fangs";
+                        case 1 -> "db_twofold_slash";
+                        default -> "db_sixfold_slash";
+                    };
+                    int actionTicks = WeaponDataResolver.resolveInt(player, null, "comboActionTicks", 10);
+                    state.setActionKey(actionKey);
+                    state.setActionKeyTicks(actionTicks);
+                } else if (inArch) {
+                    int lastTick = weaponState.getDbComboTick();
+                    int current = weaponState.getDbComboIndex();
+                    int next = (player.tickCount - lastTick) > window ? 0 : (current + 1) % 3;
+                    weaponState.setDbComboIndex(next);
+                    weaponState.setDbComboTick(player.tickCount);
+                    String actionKey = switch (next) {
+                        case 0 -> "db_arch_slash_1";
+                        case 1 -> "db_arch_slash_2";
+                        default -> "db_arch_slash_3";
+                    };
+                    int actionTicks = WeaponDataResolver.resolveInt(player, null, "comboActionTicks", 10);
+                    state.setActionKey(actionKey);
+                    state.setActionKeyTicks(actionTicks);
+                } else {
+                    int lastTick = weaponState.getDbComboTick();
+                    int current = weaponState.getDbComboIndex();
+                    int next = (player.tickCount - lastTick) > window ? 0 : (current + 1) % 3;
+                    weaponState.setDbComboIndex(next);
+                    weaponState.setDbComboTick(player.tickCount);
+                    String actionKey = switch (next) {
+                        case 0 -> "db_double_slash";
+                        case 1 -> "db_return_stroke";
+                        default -> "db_circle_slash";
+                    };
+                    int actionTicks = WeaponDataResolver.resolveInt(player, null, "comboActionTicks", 12);
+                    state.setActionKey(actionKey);
+                    state.setActionKeyTicks(actionTicks);
+                }
                 return;
             }
             if ("switch_axe".equals(weaponId) && weaponState.isSwitchAxeSwordMode()) {

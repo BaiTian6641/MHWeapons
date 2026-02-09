@@ -7,6 +7,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.example.MHWeaponsMod;
 import org.example.client.render.KinsectRenderer;
+import org.example.client.render.KinsectPowderCloudRenderer;
 import org.example.client.render.EchoBubbleRenderer;
 import org.example.registry.MHWeaponsItems;
 
@@ -29,6 +30,7 @@ public final class ClientModEvents {
     @SubscribeEvent
     public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(MHWeaponsItems.KINSECT.get(), KinsectRenderer::new);
+        event.registerEntityRenderer(MHWeaponsItems.KINSECT_POWDER_CLOUD.get(), KinsectPowderCloudRenderer::new);
         event.registerEntityRenderer(MHWeaponsItems.ECHO_BUBBLE.get(), EchoBubbleRenderer::new);
     }
 }

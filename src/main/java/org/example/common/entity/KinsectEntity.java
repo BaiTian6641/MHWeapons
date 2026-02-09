@@ -3,6 +3,7 @@ package org.example.common.entity;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -15,11 +16,13 @@ import net.minecraft.world.phys.Vec3;
 import org.example.common.capability.player.PlayerWeaponState;
 import org.example.common.util.CapabilityUtil;
 import org.example.item.WeaponIdProvider;
+import org.example.registry.MHWeaponsItems;
 
 @SuppressWarnings("null")
 public class KinsectEntity extends Projectile {
     private static final EntityDataAccessor<Integer> COLOR = SynchedEntityData.defineId(KinsectEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> STATE = SynchedEntityData.defineId(KinsectEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> POWDER_TYPE_DATA = SynchedEntityData.defineId(KinsectEntity.class, EntityDataSerializers.INT);
     private static final double FLY_SPEED = 0.9;
     private static final double RETURN_SPEED = 1.1;
     private static final int MAX_EXTRACT_TICKS = 1200;
@@ -36,6 +39,11 @@ public class KinsectEntity extends Projectile {
     private double maxRange = 20.0;
     private float damage = 2.0f;
     private float hoverAngle;
+    private int powderType = 1; // 0=None, 1=Blast, 2=Poison, 3=Paralysis, 4=Heal
+    private int powderCooldown = 0; // Ticks between powder spawns
+    private int autoAttackCooldown = 0; // Ticks between auto-attacks on marked target
+    private boolean markMode = false; // Whether this launch is a mark-target launch
+    private Vec3 lastPowderPos; // Last position where powder was dropped
 
     public KinsectEntity(EntityType<? extends Projectile> type, Level level) {
         super(type, level);
@@ -54,6 +62,7 @@ public class KinsectEntity extends Projectile {
     protected void defineSynchedData() {
         this.entityData.define(COLOR, 0);
         this.entityData.define(STATE, 0);
+        this.entityData.define(POWDER_TYPE_DATA, 1);
     }
 
     public int getColor() {
@@ -81,12 +90,23 @@ public class KinsectEntity extends Projectile {
         return targetPos;
     }
 
+    public int getPowderTypeData() {
+        return this.entityData.get(POWDER_TYPE_DATA);
+    }
+
+    public boolean isMarkMode() {
+        return markMode;
+    }
+
     @Override
     public void tick() {
         if (this.level().isClientSide) {
             super.tick();
             return;
         }
+        if (powderCooldown > 0) powderCooldown--;
+        if (autoAttackCooldown > 0) autoAttackCooldown--;
+
         switch (state) {
             case FLYING -> tickFlying();
             case HOVERING -> tickHovering();
@@ -128,7 +148,26 @@ public class KinsectEntity extends Projectile {
         this.targetPos = this.targetHitPos;
         this.targetEntityId = target != null ? target.getId() : -1;
         this.hoverPos = null;
+        this.markMode = false;
+        this.lastPowderPos = position();
         setState(KinsectState.FLYING);
+    }
+
+    /**
+     * Launch the kinsect to mark a target. The kinsect will auto-attack the marked target
+     * while hovering and leave powder clouds along its path.
+     */
+    public void launchToMark(Vec3 pos, LivingEntity target, Vec3 hitPos) {
+        launchTo(pos, target, hitPos);
+        this.markMode = true;
+        // Set mark on owner's weapon state
+        if (getOwner() instanceof ServerPlayer player && target != null) {
+            PlayerWeaponState ws = CapabilityUtil.getPlayerWeaponState(player);
+            if (ws != null) {
+                ws.setKinsectMarkedTargetId(target.getId());
+                ws.setKinsectMarkedTicks(600); // 30 seconds mark duration
+            }
+        }
     }
 
     public void recall() {
@@ -164,6 +203,13 @@ public class KinsectEntity extends Projectile {
                 returnSpeed = Math.max(flySpeed * 1.1, RETURN_SPEED);
                 maxRange = kinsectItem.getRange();
                 damage = kinsectItem.getDamage();
+                powderType = kinsectItem.getPowderType();
+                this.entityData.set(POWDER_TYPE_DATA, powderType);
+                // Sync powder type to owner's weapon state
+                PlayerWeaponState ws = CapabilityUtil.getPlayerWeaponState(player);
+                if (ws != null) {
+                    ws.setKinsectPowderType(powderType);
+                }
                 return;
             }
             if (player.getMainHandItem().getItem() instanceof WeaponIdProvider) {
@@ -188,6 +234,8 @@ public class KinsectEntity extends Projectile {
             if (targetEntity != null) {
                 collectExtract(targetEntity, targetHitPos != null ? targetHitPos : target);
             }
+            // Spawn powder cloud at hit location
+            spawnPowderCloud(position());
             enterHover(target);
             return;
         }
@@ -195,9 +243,33 @@ public class KinsectEntity extends Projectile {
         Vec3 velocity = getDeltaMovement().scale(0.6).add(desired.scale(0.4));
         setDeltaMovement(velocity);
         setPos(getX() + velocity.x, getY() + velocity.y, getZ() + velocity.z);
+
+        // Spawn powder trail along flight path
+        trySpawnPowderTrail();
     }
 
     private void tickHovering() {
+        // Auto-attack marked target while hovering
+        if (markMode && autoAttackCooldown <= 0) {
+            LivingEntity markedTarget = resolveTargetEntity();
+            if (markedTarget != null && markedTarget.isAlive()) {
+                // Attack the marked target
+                if (damage > 0.0f && getOwner() instanceof LivingEntity owner) {
+                    markedTarget.hurt(owner.damageSources().mobAttack(owner), damage * 0.6f);
+                    autoAttackCooldown = 30; // Attack every 1.5 seconds
+                    // Spawn powder cloud at target during auto-attack
+                    if (powderCooldown <= 0) {
+                        spawnPowderCloud(markedTarget.position().add(0, markedTarget.getBbHeight() * 0.5, 0));
+                        powderCooldown = 60; // One powder per 3 seconds during auto-attack
+                    }
+                    // Update hover position to follow marked target
+                    Vec3 newHover = markedTarget.position().add(0, markedTarget.getBbHeight() + 0.5, 0);
+                    targetHitPos = newHover;
+                    targetPos = newHover;
+                }
+            }
+        }
+
         Vec3 hoverCenter = targetHitPos != null ? targetHitPos : targetPos;
         if (hoverCenter != null) {
             hoverAngle += 0.15f;
@@ -306,6 +378,39 @@ public class KinsectEntity extends Projectile {
         if (y >= headY) return 1;
         if (y <= lowY) return 2;
         return 3;
+    }
+
+    /**
+     * Attempt to spawn a powder cloud along the kinsect's flight path.
+     * Spawns one cloud every ~3 blocks traveled.
+     */
+    private void trySpawnPowderTrail() {
+        if (powderType <= 0 || powderCooldown > 0) return;
+        if (lastPowderPos == null) {
+            lastPowderPos = position();
+            return;
+        }
+        double distSq = position().distanceToSqr(lastPowderPos);
+        if (distSq >= 9.0) { // 3 blocks squared
+            spawnPowderCloud(position());
+            lastPowderPos = position();
+            powderCooldown = 10; // Min 0.5s between trail clouds
+        }
+    }
+
+    /**
+     * Spawn a powder cloud entity at the given position.
+     */
+    private void spawnPowderCloud(Vec3 pos) {
+        if (powderType <= 0 || level().isClientSide) return;
+        KinsectPowderCloudEntity cloud = new KinsectPowderCloudEntity(
+                MHWeaponsItems.KINSECT_POWDER_CLOUD.get(),
+                level(),
+                powderType,
+                getOwner() != null ? getOwner().getId() : -1
+        );
+        cloud.setPos(pos.x, pos.y, pos.z);
+        level().addFreshEntity(cloud);
     }
 
     private enum KinsectState {

@@ -77,6 +77,11 @@ public final class WeaponActionHandler {
                 }
                 return;
             }
+            if (weaponState != null && "dual_blades".equals(weaponId)) {
+                if (DualBladesHandler.handleDemonDodge(player, combatState, weaponState)) {
+                    return;
+                }
+            }
             if (weaponState != null && "tonfa".equals(weaponId)) {
                 if (TonfaHandler.handleDodge(player, true, combatState, weaponState)) {
                     return;
@@ -147,7 +152,10 @@ public final class WeaponActionHandler {
             case "greatsword" -> handleGreatSword(action, pressed, combatState);
             case "longsword" -> LongSwordHandler.handleAction(action, pressed, player, combatState, weaponState, inputX, inputZ);
             case "sword_and_shield" -> handleSwordAndShield(action, pressed, combatState);
-            case "dual_blades" -> handleDualBlades(action, pressed, player, combatState, weaponState);
+            case "dual_blades" -> {
+                DualBladesHandler.handleAction(action, pressed, player, combatState, weaponState);
+                syncWeaponState(player, weaponState);
+            }
             case "hammer" -> handleHammer(action, pressed, combatState, weaponState);
             case "hunting_horn" -> HuntingHornHandler.handleAction(action, pressed, player, combatState, weaponState);
             case "lance" -> handleLance(action, pressed, player, combatState, weaponState);
@@ -346,29 +354,7 @@ public final class WeaponActionHandler {
         }
     }
 
-    private static void handleDualBlades(WeaponActionType action, boolean pressed, Player player, PlayerCombatState combatState, PlayerWeaponState weaponState) {
-        if (!pressed) {
-            return;
-        }
-        if (action == WeaponActionType.SPECIAL) {
-            boolean next = !weaponState.isDemonMode();
-            weaponState.setDemonMode(next);
-            setAction(combatState, next ? "demon_mode" : "exit_demon", 10);
-            return;
-        }
-        if (action == WeaponActionType.WEAPON) {
-            if (weaponState.isDemonMode() || weaponState.isArchDemon()) {
-                weaponState.addDemonGauge(-20.0f);
-                spendStamina(player, weaponState, 12.0f, 20);
-                setAction(combatState, "demon_dance", 12);
-            }
-            return;
-        }
-        if (action == WeaponActionType.WEAPON_ALT) {
-            spendStamina(player, weaponState, 8.0f, 15);
-            setAction(combatState, "blade_dance", 10);
-        }
-    }
+    // Dual Blades: Logic moved to DualBladesHandler.java
 
     private static void handleHammer(WeaponActionType action, boolean pressed, PlayerCombatState combatState, PlayerWeaponState weaponState) {
         if (!pressed) {
@@ -551,12 +537,107 @@ public final class WeaponActionHandler {
 
     @SuppressWarnings("null")
     private static void handleInsectGlaive(WeaponActionType action, boolean pressed, Player player, PlayerCombatState combatState, PlayerWeaponState weaponState) {
+        // --- Handle charge release (RMB released while charging) ---
+        if (action == WeaponActionType.WEAPON_ALT && !pressed) {
+            if (weaponState.isInsectCharging()) {
+                weaponState.setInsectCharging(false);
+                int chargeTicks = weaponState.getInsectChargeTicks();
+                weaponState.setInsectChargeTicks(0);
+
+                if (chargeTicks >= 20) { // Full charge threshold → Descending Slash/Thrust
+                    if (weaponState.getInsectAerialTicks() > 0 && !player.onGround()) {
+                        // Aerial: Descending Thrust — dive attack
+                        setAction(combatState, "descending_thrust", 16);
+                        player.setDeltaMovement(player.getDeltaMovement().x * 0.3, -1.2, player.getDeltaMovement().z * 0.3);
+                        player.hurtMarked = true;
+                        if (player.level() instanceof ServerLevel serverLevel) {
+                            blastInFront(player, 3.5, 18.0f);
+                            Vec3 pos = player.position();
+                            serverLevel.sendParticles(ParticleTypes.SWEEP_ATTACK, pos.x, pos.y + 0.5, pos.z, 6, 0.5, 0.3, 0.5, 0.01);
+                        }
+                    } else {
+                        // Ground: Descending Slash — heavy overhead
+                        setAction(combatState, "descending_slash", 18);
+                        if (player.level() instanceof ServerLevel serverLevel) {
+                            blastInFront(player, 4.0, 22.0f);
+                            Vec3 look = player.getLookAngle().normalize();
+                            Vec3 center = player.position().add(look.scale(1.5)).add(0, 1.0, 0);
+                            serverLevel.sendParticles(ParticleTypes.SWEEP_ATTACK, center.x, center.y, center.z, 8, 0.3, 0.2, 0.3, 0.02);
+                        }
+                        // If triple up → enable finisher chain
+                        if (weaponState.isInsectRed() && weaponState.isInsectWhite() && weaponState.isInsectOrange()) {
+                            weaponState.setInsectTripleFinisherStage(1);
+                            weaponState.setInsectTripleFinisherTicks(60);
+                        }
+                    }
+                } else if (chargeTicks >= 10) { // Partial charge → Tornado Slash (spinning attack)
+                    setAction(combatState, "tornado_slash", 14);
+                    if (player.level() instanceof ServerLevel serverLevel) {
+                        blastInFront(player, 3.5, 16.0f);
+                        Vec3 pos = player.position();
+                        serverLevel.sendParticles(ParticleTypes.SWEEP_ATTACK, pos.x, pos.y + 1.0, pos.z, 5, 0.4, 0.2, 0.4, 0.02);
+                    }
+                    // Tornado Slash can chain into another charge for Descending Slash
+                    weaponState.setInsectCharging(true);
+                    weaponState.setInsectChargeTicks(0);
+                }
+                // else: too short, no attack produced
+
+                weaponState.setInsectComboIndex(0);
+                weaponState.setInsectComboTick(player.tickCount);
+                syncWeaponState(player, weaponState);
+                return;
+            }
+            return; // Normal RMB release, nothing to do
+        }
+
         if (!pressed) {
             return;
         }
+
+        // --- Kinsect Launch (handled via dedicated packet) ---
         if (action == WeaponActionType.KINSECT_LAUNCH) {
             return;
         }
+
+        // --- LMB+RMB Instant Descending Slash (CHARGE action used as shortcut signal) ---
+        if (action == WeaponActionType.CHARGE) {
+            if (weaponState.isInsectRed()) {
+                if (weaponState.getInsectAerialTicks() > 0 && !player.onGround()) {
+                    // Aerial: instant Descending Thrust
+                    setAction(combatState, "descending_thrust", 16);
+                    player.setDeltaMovement(player.getDeltaMovement().x * 0.3, -1.2, player.getDeltaMovement().z * 0.3);
+                    player.hurtMarked = true;
+                    if (player.level() instanceof ServerLevel serverLevel) {
+                        blastInFront(player, 3.5, 14.0f); // Slightly less than charged version
+                        Vec3 pos = player.position();
+                        serverLevel.sendParticles(ParticleTypes.SWEEP_ATTACK, pos.x, pos.y + 0.5, pos.z, 4, 0.4, 0.3, 0.4, 0.01);
+                    }
+                } else {
+                    // Ground: instant Descending Slash
+                    setAction(combatState, "descending_slash", 16);
+                    if (player.level() instanceof ServerLevel serverLevel) {
+                        blastInFront(player, 3.5, 16.0f); // Slightly less than charged version
+                        Vec3 look = player.getLookAngle().normalize();
+                        Vec3 center = player.position().add(look.scale(1.5)).add(0, 1.0, 0);
+                        serverLevel.sendParticles(ParticleTypes.SWEEP_ATTACK, center.x, center.y, center.z, 6, 0.3, 0.2, 0.3, 0.02);
+                    }
+                    // Triple up → finisher chain (same as charged version)
+                    if (weaponState.isInsectRed() && weaponState.isInsectWhite() && weaponState.isInsectOrange()) {
+                        weaponState.setInsectTripleFinisherStage(1);
+                        weaponState.setInsectTripleFinisherTicks(60);
+                    }
+                }
+                weaponState.setInsectComboIndex(0);
+                weaponState.setInsectComboTick(player.tickCount);
+                weaponState.setInsectCharging(false);
+                weaponState.setInsectChargeTicks(0);
+                syncWeaponState(player, weaponState);
+            }
+            return;
+        }
+
+        // --- Kinsect Recall ---
         if (action == WeaponActionType.KINSECT_RECALL) {
             if (!hasKinsectOffhand(player)) {
                 player.displayClientMessage(net.minecraft.network.chat.Component.literal("Kinsect required in offhand"), true);
@@ -569,23 +650,44 @@ public final class WeaponActionHandler {
             }
             return;
         }
+
+        // --- LMB (WEAPON) ---
         if (action == WeaponActionType.WEAPON) {
+            // Aerial: Jumping Advancing Slash
             if (weaponState.getInsectAerialTicks() > 0 && !player.onGround()) {
+                int bounceLevel = weaponState.getInsectAerialBounceLevel();
+                float speedScale = 0.65f + (bounceLevel * 0.15f); // Power up per bounce level
                 setAction(combatState, "aerial_advancing_slash", 10);
-                Vec3 forward = player.getLookAngle().normalize().scale(0.65);
+                Vec3 forward = player.getLookAngle().normalize().scale(speedScale);
                 double lift = Math.max(0.25, player.getDeltaMovement().y);
                 player.setDeltaMovement(forward.x, lift, forward.z);
                 player.hurtMarked = true;
+                // Check if there's a target in front for Vaulting Dance
+                LivingEntity target = findTargetInFront(player, 3.0);
+                if (target != null && bounceLevel < 2) {
+                    // Vaulting Dance: bounce off the target, increase power level
+                    weaponState.setInsectAerialBounceLevel(bounceLevel + 1);
+                    weaponState.setInsectAerialTicks(Math.max(weaponState.getInsectAerialTicks(), 30)); // Refresh air time
+                    float bounceLift = 0.6f + (bounceLevel * 0.1f);
+                    player.setDeltaMovement(forward.x * 0.3, bounceLift, forward.z * 0.3);
+                    player.hurtMarked = true;
+                    float bounceDamage = (float) (player.getAttributeValue(Attributes.ATTACK_DAMAGE) * (1.0 + bounceLevel * 0.2));
+                    target.hurt(player.damageSources().playerAttack(player), bounceDamage);
+                    if (player.level() instanceof ServerLevel serverLevel) {
+                        serverLevel.sendParticles(ParticleTypes.SWEEP_ATTACK,
+                                target.getX(), target.getY() + target.getBbHeight() * 0.5, target.getZ(),
+                                4, 0.3, 0.2, 0.3, 0.01);
+                    }
+                }
+                syncWeaponState(player, weaponState);
                 return;
             }
+
+            // Ground combo: Rising Slash → Reaping Slash → Double Slash (cycles 0→1→2→0)
             int window = WeaponDataResolver.resolveInt(player, null, "comboWindowTicks", 12);
             int lastTick = weaponState.getInsectComboTick();
             int current = weaponState.getInsectComboIndex();
             boolean withinWindow = (player.tickCount - lastTick) <= window;
-
-            // Standard combo progression: cycle LMB -> LMB -> LMB (Rising, Reaping, Double)
-            // Finalizer is performed via Alt (handled in WEAPON_ALT branch) as "Overhead Smash" per canonical manual.
-            // Continue into next combo step when LMB pressed again within window.
 
             int next = withinWindow ? (current + 1) % 3 : 0;
             weaponState.setInsectComboIndex(next);
@@ -601,29 +703,20 @@ public final class WeaponActionHandler {
             }
             return;
         }
+
+        // --- RMB (WEAPON_ALT) ---
         if (action == WeaponActionType.WEAPON_ALT) {
-            // If we're in a triple-extract finisher sequence, progress it here
+            // Triple Extract Finisher chain progression
             if (weaponState.getInsectTripleFinisherStage() > 0) {
                 int stage = weaponState.getInsectTripleFinisherStage();
                 if (stage == 1) {
-                    // Tornado Slash executed -> Strong Descending Slash
-                    weaponState.setInsectTripleFinisherStage(2);
-                    weaponState.setInsectTripleFinisherTicks(40);
-                    setAction(combatState, "strong_descending_slash", 18);
-                    // Small forward blast for stage feedback
-                    if (player.level() instanceof ServerLevel serverLevel) {
-                        blastInFront(player, 3.0, 12.0f);
-                        Vec3 look = player.getLookAngle().normalize();
-                        Vec3 center = player.position().add(look.scale(1.0)).add(0, 0.8, 0);
-                        serverLevel.sendParticles(ParticleTypes.FLAME, center.x, center.y, center.z, 12, 0.2, 0.2, 0.2, 0.02);
-                    }
-                    syncWeaponState(player, weaponState);
-                    return;
-                } else if (stage == 2) {
-                    // Final Rising Spiral Slash -> consume extracts and apply heavy damage
+                    // After Descending Slash → Rising Spiral Slash (final, heavy damage, consume extracts)
                     weaponState.setInsectTripleFinisherStage(0);
                     weaponState.setInsectTripleFinisherTicks(0);
                     setAction(combatState, "rising_spiral_slash", 24);
+                    // Launch player upward during Rising Spiral Slash
+                    player.setDeltaMovement(player.getDeltaMovement().x * 0.3, 0.85, player.getDeltaMovement().z * 0.3);
+                    player.hurtMarked = true;
                     if (player.level() instanceof ServerLevel serverLevel) {
                         blastInFront(player, 5.0, 48.0f);
                         Vec3 look = player.getLookAngle().normalize();
@@ -636,18 +729,107 @@ public final class WeaponActionHandler {
                     weaponState.setInsectWhite(false);
                     weaponState.setInsectOrange(false);
                     weaponState.setInsectExtractTicks(0);
+                    weaponState.setInsectCharging(false);
+                    weaponState.setInsectChargeTicks(0);
                     syncWeaponState(player, weaponState);
                     return;
                 }
             }
 
+            // Aerial: If charging in air, pressing RMB again should not override — charge release handles it
+            // Jumping Slash (descend with attack)
             if (weaponState.getInsectAerialTicks() > 0 && !player.onGround()) {
                 setAction(combatState, "aerial_slash", 10);
                 Vec3 motion = player.getDeltaMovement();
                 player.setDeltaMovement(motion.x, Math.min(-0.4, motion.y), motion.z);
                 player.hurtMarked = true;
+                if (player.level() instanceof ServerLevel serverLevel) {
+                    blastInFront(player, 3.0, 12.0f);
+                }
                 return;
             }
+
+            // Ground: Check for directional input
+            // Back + RMB → Dodge Slash (evasive backward slash)
+            if (player.isShiftKeyDown()) {
+                setAction(combatState, "dodge_slash", 12);
+                Vec3 back = player.getLookAngle().normalize().scale(-0.8);
+                player.setDeltaMovement(back.x, 0.3, back.z);
+                player.hurtMarked = true;
+                applyInsectGlaiveAltHit(player, false);
+                weaponState.setInsectComboIndex(0);
+                weaponState.setInsectComboTick(player.tickCount);
+                return;
+            }
+
+            // Check if we should start charging (Red extract active, hold RMB)
+            if (weaponState.isInsectRed()) {
+                int window = WeaponDataResolver.resolveInt(player, null, "comboWindowTicks", 12);
+                boolean inCombo = (player.tickCount - weaponState.getInsectComboTick()) <= window;
+
+                // Forward + RMB → Leaping Slash (gap closer, leads into charge/Tornado Slash)
+                // We detect "forward" as not-shifting and check combo state
+                if (inCombo && weaponState.getInsectComboIndex() >= 1) {
+                    // After at least one combo hit → Leaping Slash
+                    setAction(combatState, "leaping_slash", 12);
+                    Vec3 forward = player.getLookAngle().normalize().scale(0.9);
+                    player.setDeltaMovement(forward.x, 0.35, forward.z);
+                    player.hurtMarked = true;
+                    applyInsectGlaiveAltHit(player, false);
+                    weaponState.setInsectComboIndex(0);
+                    weaponState.setInsectComboTick(player.tickCount);
+                    // Start charging for Tornado Slash → Descending Slash chain
+                    weaponState.setInsectCharging(true);
+                    weaponState.setInsectChargeTicks(0);
+                    syncWeaponState(player, weaponState);
+                    return;
+                }
+
+                // Default with Red: start charging (will release into Descending Slash)
+                // But first check overhead_smash eligibility
+                boolean overheadReady = inCombo && weaponState.getInsectComboIndex() >= 2;
+                if (overheadReady) {
+                    // Overhead Smash takes priority when combo is ready
+                    setAction(combatState, "overhead_smash", 10);
+                    if (player instanceof ServerPlayer serverPlayer) {
+                        String fallbackAnim = "bettercombat:two_handed_slam_heavy";
+                        String animId = BetterCombatAnimationBridge.resolveComboAnimationServer(player, 0, fallbackAnim);
+                        float length = WeaponDataResolver.resolveFloat(player, "animationTiming", "length", 16.666666f);
+                        float upswing = WeaponDataResolver.resolveFloat(player, "animationTiming", "upswing", 0.25f);
+                        ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> serverPlayer),
+                            new PlayAttackAnimationS2CPacket(player.getId(), animId, length, upswing, 1.0f, "overhead_smash", 10));
+                    }
+                    applyInsectGlaiveAltHit(player, true);
+                    weaponState.setInsectComboIndex(0);
+                    weaponState.setInsectComboTick(player.tickCount);
+                    return;
+                }
+
+                // Wide Sweep (default RMB from idle with red) — also starts charge
+                setAction(combatState, "wide_sweep", 10);
+                if (player instanceof ServerPlayer serverPlayer) {
+                    String fallbackAnim = "bettercombat:two_handed_slash_horizontal_left";
+                    String animId = BetterCombatAnimationBridge.resolveComboAnimationServer(player, 0, fallbackAnim);
+                    float length = WeaponDataResolver.resolveFloat(player, "animationTiming", "length", 16.666666f);
+                    float upswing = WeaponDataResolver.resolveFloat(player, "animationTiming", "upswing", 0.25f);
+                    ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> serverPlayer),
+                        new PlayAttackAnimationS2CPacket(player.getId(), animId, length, upswing, 1.0f, "wide_sweep", 10));
+                }
+                applyInsectGlaiveAltHit(player, false);
+                if (combatState.isFocusMode()) {
+                    KinsectEntity kinsect = resolveKinsect(player, weaponState);
+                    if (kinsect != null) {
+                        kinsect.recall();
+                    }
+                }
+                // Begin charge after wide sweep (can hold RMB for Tornado Slash / Descending Slash)
+                weaponState.setInsectCharging(true);
+                weaponState.setInsectChargeTicks(0);
+                syncWeaponState(player, weaponState);
+                return;
+            }
+
+            // --- No Red extract: standard RMB behavior ---
             int window = WeaponDataResolver.resolveInt(player, null, "comboWindowTicks", 12);
             boolean overheadReady = (player.tickCount - weaponState.getInsectComboTick()) <= window
                     && weaponState.getInsectComboIndex() >= 2;
@@ -676,21 +858,38 @@ public final class WeaponActionHandler {
             }
             return;
         }
+
+        // --- SPECIAL (Vault / Kinsect Recall) ---
         if (action == WeaponActionType.SPECIAL) {
             if (player.isShiftKeyDown()) {
+                // Shift+Special → Kinsect Recall
                 KinsectEntity kinsect = resolveKinsect(player, weaponState);
                 if (kinsect != null) {
                     kinsect.recall();
                     setAction(combatState, "kinsect_recall", 10);
                 }
             } else {
+                // Vault
                 if (weaponState.getStamina() < 12.0f) {
                     return;
                 }
                 spendStamina(player, weaponState, 12.0f, 20);
                 setAction(combatState, "vault", 10);
                 weaponState.setInsectAerialTicks(40);
-                player.setDeltaMovement(player.getDeltaMovement().x, 0.8, player.getDeltaMovement().z);
+                weaponState.setInsectAerialBounceLevel(0); // Reset bounce on fresh vault
+                // White extract gives extra jump height
+                double vaultPower = 0.8;
+                if (weaponState.isInsectWhite()) {
+                    vaultPower = 1.0; // +25% vault height with White extract
+                }
+                // Backward vault: Shift held → backward direction + i-frames
+                if (player.isShiftKeyDown()) {
+                    Vec3 back = player.getLookAngle().normalize().scale(-0.6);
+                    player.setDeltaMovement(back.x, vaultPower, back.z);
+                    combatState.setDodgeIFrameTicks(10); // Backward vault grants 10 i-frames
+                } else {
+                    player.setDeltaMovement(player.getDeltaMovement().x, vaultPower, player.getDeltaMovement().z);
+                }
                 player.hurtMarked = true;
             }
         }
@@ -959,8 +1158,15 @@ public final class WeaponActionHandler {
         Vec3 finalPos = targetPos != null ? targetPos : (target != null
                 ? target.position().add(0, target.getBbHeight() * 0.6, 0)
                 : fallback);
-        kinsect.launchTo(finalPos, target, targetPos != null ? targetPos : finalPos);
-        setAction(combatState, "kinsect_harvest", 10);
+
+        // If target exists and player is shifting, use Mark mode
+        if (target != null && player.isShiftKeyDown()) {
+            kinsect.launchToMark(finalPos, target, targetPos != null ? targetPos : finalPos);
+            setAction(combatState, "kinsect_mark", 12);
+        } else {
+            kinsect.launchTo(finalPos, target, targetPos != null ? targetPos : finalPos);
+            setAction(combatState, "kinsect_harvest", 10);
+        }
     }
 
     private static boolean hasKinsectOffhand(Player player) {
