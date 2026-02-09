@@ -518,7 +518,8 @@ public final class ClientForgeEvents {
             || "insect_glaive".equals(weaponId)
                 || "tonfa".equals(weaponId)
                 || "magnet_spike".equals(weaponId)
-                || "accel_axe".equals(weaponId);
+                || "accel_axe".equals(weaponId)
+                || "switch_axe".equals(weaponId);
     }
 
     private static int resolveLongSwordChargeStage(int chargeTicks, int maxCharge) {

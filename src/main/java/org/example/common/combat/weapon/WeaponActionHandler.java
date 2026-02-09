@@ -152,7 +152,10 @@ public final class WeaponActionHandler {
             case "hunting_horn" -> handleHuntingHorn(action, pressed, player, combatState, weaponState);
             case "lance" -> handleLance(action, pressed, player, combatState, weaponState);
             case "gunlance" -> handleGunlance(action, pressed, player, combatState, weaponState);
-            case "switch_axe" -> handleSwitchAxe(action, pressed, combatState, weaponState);
+            case "switch_axe" -> {
+                SwitchAxeHandler.handleAction(action, pressed, player, combatState, weaponState);
+                syncWeaponState(player, weaponState);
+            }
             case "charge_blade" -> handleChargeBlade(action, pressed, player, combatState, weaponState);
             case "insect_glaive" -> handleInsectGlaive(action, pressed, player, combatState, weaponState);
             case "tonfa" -> {
@@ -313,7 +316,8 @@ public final class WeaponActionHandler {
             || "insect_glaive".equals(weaponId)
                 || "tonfa".equals(weaponId)
                 || "magnet_spike".equals(weaponId)
-                || "accel_axe".equals(weaponId);
+                || "accel_axe".equals(weaponId)
+                || "switch_axe".equals(weaponId);
     }
 
     private static void handleGreatSword(WeaponActionType action, boolean pressed, PlayerCombatState combatState) {
@@ -582,29 +586,6 @@ public final class WeaponActionHandler {
                  syncWeaponState(player, weaponState);
                  return;
              }
-        }
-    }
-
-    private static void handleSwitchAxe(WeaponActionType action, boolean pressed, PlayerCombatState combatState, PlayerWeaponState weaponState) {
-        if (!pressed) {
-            return;
-        }
-        if (action == WeaponActionType.WEAPON) {
-            weaponState.setSwitchAxeSwordMode(!weaponState.isSwitchAxeSwordMode());
-            setAction(combatState, "morph", 10);
-            return;
-        }
-        if (action == WeaponActionType.SPECIAL) {
-            if (weaponState.getSwitchAxeFrcCooldown() > 0 || weaponState.getSwitchAxeAmpGauge() < 50.0f) {
-                return;
-            }
-            weaponState.addSwitchAxeAmpGauge(-50.0f);
-            weaponState.setSwitchAxeFrcCooldown(60);
-            setAction(combatState, "full_release", 12);
-            return;
-        }
-        if (action == WeaponActionType.WEAPON_ALT) {
-            setAction(combatState, "elemental_discharge", 12);
         }
     }
 

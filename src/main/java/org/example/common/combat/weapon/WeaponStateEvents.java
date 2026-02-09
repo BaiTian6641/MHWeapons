@@ -430,6 +430,61 @@ public final class WeaponStateEvents {
             state.addSwitchAxeAmpGauge(-0.1f);
         }
 
+        // Switch Gauge passive regen in Axe Mode or when sheathed
+        if (!"switch_axe".equals(weaponId) || !state.isSwitchAxeSwordMode()) {
+            if (state.getSwitchAxeSwitchGauge() < 100.0f) {
+                float regenRate = state.isSwitchAxePowerAxe() ? 0.15f : 0.08f;
+                state.addSwitchAxeSwitchGauge(regenRate);
+            }
+        }
+
+        // Switch Gauge decay in Sword Mode (slow passive drain)
+        if ("switch_axe".equals(weaponId) && state.isSwitchAxeSwordMode()) {
+            state.addSwitchAxeSwitchGauge(-0.05f);
+            if (state.getSwitchAxeSwitchGauge() <= 0.0f) {
+                // Force morph to axe
+                state.setSwitchAxeSwordMode(false);
+                state.setSwitchAxeComboIndex(0);
+            }
+        }
+
+        // Power Axe timer countdown
+        if (state.isSwitchAxePowerAxe()) {
+            int remaining = state.getSwitchAxePowerAxeTicks() - 1;
+            if (remaining <= 0) {
+                state.setSwitchAxePowerAxe(false);
+                state.setSwitchAxePowerAxeTicks(0);
+            } else {
+                state.setSwitchAxePowerAxeTicks(remaining);
+            }
+        }
+
+        // Amped State timer countdown
+        if (state.isSwitchAxeAmped()) {
+            int remaining = state.getSwitchAxeAmpedTicks() - 1;
+            if (remaining <= 0) {
+                state.setSwitchAxeAmped(false);
+                state.setSwitchAxeAmpedTicks(0);
+                state.setSwitchAxeAmpGauge(0.0f);
+            } else {
+                state.setSwitchAxeAmpedTicks(remaining);
+            }
+        }
+
+        // Counter window countdown
+        if (state.getSwitchAxeCounterTicks() > 0) {
+            state.setSwitchAxeCounterTicks(state.getSwitchAxeCounterTicks() - 1);
+        }
+
+        // Combo timeout reset
+        if ("switch_axe".equals(weaponId)) {
+            int comboTimeout = 30;
+            if ((player.tickCount - state.getSwitchAxeComboTick()) > comboTimeout) {
+                state.setSwitchAxeComboIndex(0);
+                state.setSwitchAxeWildSwingCount(0);
+            }
+        }
+
         if (state.getInsectExtractTicks() > 0) {
             state.setInsectExtractTicks(state.getInsectExtractTicks() - 1);
             if (state.getInsectExtractTicks() <= 0) {
@@ -674,7 +729,21 @@ public final class WeaponStateEvents {
         switch (weaponId) {
             case "longsword" -> state.addSpiritGauge(8.0f);
             case "dual_blades" -> state.addDemonGauge(5.0f);
-            case "switch_axe" -> state.addSwitchAxeAmpGauge(state.isSwitchAxeSwordMode() ? 8.0f : 5.0f);
+            case "switch_axe" -> {
+                // Amp gauge gain on hit
+                float ampGain = state.isSwitchAxeSwordMode() ? 8.0f : 5.0f;
+                state.addSwitchAxeAmpGauge(ampGain);
+                // Switch gauge gain from axe hits
+                if (!state.isSwitchAxeSwordMode()) {
+                    float sgGain = state.isSwitchAxePowerAxe() ? 5.0f : 3.0f;
+                    state.addSwitchAxeSwitchGauge(sgGain);
+                }
+                // Check for amped state activation
+                if (!state.isSwitchAxeAmped() && state.getSwitchAxeAmpGauge() >= 100.0f) {
+                    state.setSwitchAxeAmped(true);
+                    state.setSwitchAxeAmpedTicks(900); // 45 seconds
+                }
+            }
             case "charge_blade" -> {
                 if (state.isChargeBladeSwordMode()) {
                     int charge = state.getChargeBladeCharge() + 10;

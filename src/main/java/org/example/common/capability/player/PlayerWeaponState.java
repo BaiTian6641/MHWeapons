@@ -63,6 +63,15 @@ public final class PlayerWeaponState {
     private boolean switchAxeSwordMode;
     private float switchAxeAmpGauge;
     private int switchAxeFrcCooldown;
+    private float switchAxeSwitchGauge = 100.0f;
+    private boolean switchAxePowerAxe;
+    private int switchAxePowerAxeTicks;
+    private boolean switchAxeAmped;
+    private int switchAxeAmpedTicks;
+    private int switchAxeComboIndex;
+    private int switchAxeComboTick;
+    private int switchAxeWildSwingCount;
+    private int switchAxeCounterTicks;
 
     private boolean chargeBladeSwordMode;
     private int chargeBladePhials;
@@ -737,6 +746,110 @@ public final class PlayerWeaponState {
         }
     }
 
+    public float getSwitchAxeSwitchGauge() {
+        return switchAxeSwitchGauge;
+    }
+
+    public void setSwitchAxeSwitchGauge(float value) {
+        float clamped = Math.max(0.0f, Math.min(100.0f, value));
+        if (this.switchAxeSwitchGauge != clamped) {
+            this.switchAxeSwitchGauge = clamped;
+            markDirty();
+        }
+    }
+
+    public void addSwitchAxeSwitchGauge(float delta) {
+        setSwitchAxeSwitchGauge(switchAxeSwitchGauge + delta);
+    }
+
+    public boolean isSwitchAxePowerAxe() {
+        return switchAxePowerAxe;
+    }
+
+    public void setSwitchAxePowerAxe(boolean value) {
+        if (this.switchAxePowerAxe != value) {
+            this.switchAxePowerAxe = value;
+            markDirty();
+        }
+    }
+
+    public int getSwitchAxePowerAxeTicks() {
+        return switchAxePowerAxeTicks;
+    }
+
+    public void setSwitchAxePowerAxeTicks(int value) {
+        if (this.switchAxePowerAxeTicks != value) {
+            this.switchAxePowerAxeTicks = value;
+            markDirty();
+        }
+    }
+
+    public boolean isSwitchAxeAmped() {
+        return switchAxeAmped;
+    }
+
+    public void setSwitchAxeAmped(boolean value) {
+        if (this.switchAxeAmped != value) {
+            this.switchAxeAmped = value;
+            markDirty();
+        }
+    }
+
+    public int getSwitchAxeAmpedTicks() {
+        return switchAxeAmpedTicks;
+    }
+
+    public void setSwitchAxeAmpedTicks(int value) {
+        if (this.switchAxeAmpedTicks != value) {
+            this.switchAxeAmpedTicks = value;
+            markDirty();
+        }
+    }
+
+    public int getSwitchAxeComboIndex() {
+        return switchAxeComboIndex;
+    }
+
+    public void setSwitchAxeComboIndex(int value) {
+        if (this.switchAxeComboIndex != value) {
+            this.switchAxeComboIndex = value;
+            markDirty();
+        }
+    }
+
+    public int getSwitchAxeComboTick() {
+        return switchAxeComboTick;
+    }
+
+    public void setSwitchAxeComboTick(int value) {
+        if (this.switchAxeComboTick != value) {
+            this.switchAxeComboTick = value;
+            markDirty();
+        }
+    }
+
+    public int getSwitchAxeWildSwingCount() {
+        return switchAxeWildSwingCount;
+    }
+
+    public void setSwitchAxeWildSwingCount(int value) {
+        if (this.switchAxeWildSwingCount != value) {
+            this.switchAxeWildSwingCount = value;
+            markDirty();
+        }
+    }
+
+    public int getSwitchAxeCounterTicks() {
+        return switchAxeCounterTicks;
+    }
+
+    public void setSwitchAxeCounterTicks(int value) {
+        if (this.switchAxeCounterTicks != value) {
+            this.switchAxeCounterTicks = value;
+            markDirty();
+        }
+    }
+
     public boolean isChargeBladeSwordMode() {
         return chargeBladeSwordMode;
     }
@@ -1189,6 +1302,15 @@ public final class PlayerWeaponState {
         switchAxeSwordMode = other.switchAxeSwordMode;
         switchAxeAmpGauge = other.switchAxeAmpGauge;
         switchAxeFrcCooldown = other.switchAxeFrcCooldown;
+        switchAxeSwitchGauge = other.switchAxeSwitchGauge;
+        switchAxePowerAxe = other.switchAxePowerAxe;
+        switchAxePowerAxeTicks = other.switchAxePowerAxeTicks;
+        switchAxeAmped = other.switchAxeAmped;
+        switchAxeAmpedTicks = other.switchAxeAmpedTicks;
+        switchAxeComboIndex = other.switchAxeComboIndex;
+        switchAxeComboTick = other.switchAxeComboTick;
+        switchAxeWildSwingCount = other.switchAxeWildSwingCount;
+        switchAxeCounterTicks = other.switchAxeCounterTicks;
         chargeBladeSwordMode = other.chargeBladeSwordMode;
         chargeBladePhials = other.chargeBladePhials;
         chargeBladeCharge = other.chargeBladeCharge;
@@ -1299,6 +1421,15 @@ public final class PlayerWeaponState {
         tag.putBoolean("switchAxeSwordMode", switchAxeSwordMode);
         tag.putFloat("switchAxeAmpGauge", switchAxeAmpGauge);
         tag.putInt("switchAxeFrcCooldown", switchAxeFrcCooldown);
+        tag.putFloat("switchAxeSwitchGauge", switchAxeSwitchGauge);
+        tag.putBoolean("switchAxePowerAxe", switchAxePowerAxe);
+        tag.putInt("switchAxePowerAxeTicks", switchAxePowerAxeTicks);
+        tag.putBoolean("switchAxeAmped", switchAxeAmped);
+        tag.putInt("switchAxeAmpedTicks", switchAxeAmpedTicks);
+        tag.putInt("switchAxeComboIndex", switchAxeComboIndex);
+        tag.putInt("switchAxeComboTick", switchAxeComboTick);
+        tag.putInt("switchAxeWildSwingCount", switchAxeWildSwingCount);
+        tag.putInt("switchAxeCounterTicks", switchAxeCounterTicks);
         tag.putBoolean("chargeBladeSwordMode", chargeBladeSwordMode);
         tag.putInt("chargeBladePhials", chargeBladePhials);
         tag.putInt("chargeBladeCharge", chargeBladeCharge);
@@ -1408,6 +1539,15 @@ public final class PlayerWeaponState {
         switchAxeSwordMode = tag.getBoolean("switchAxeSwordMode");
         switchAxeAmpGauge = tag.getFloat("switchAxeAmpGauge");
         switchAxeFrcCooldown = tag.getInt("switchAxeFrcCooldown");
+        switchAxeSwitchGauge = tag.contains("switchAxeSwitchGauge") ? tag.getFloat("switchAxeSwitchGauge") : 100.0f;
+        switchAxePowerAxe = tag.getBoolean("switchAxePowerAxe");
+        switchAxePowerAxeTicks = tag.getInt("switchAxePowerAxeTicks");
+        switchAxeAmped = tag.getBoolean("switchAxeAmped");
+        switchAxeAmpedTicks = tag.getInt("switchAxeAmpedTicks");
+        switchAxeComboIndex = tag.getInt("switchAxeComboIndex");
+        switchAxeComboTick = tag.getInt("switchAxeComboTick");
+        switchAxeWildSwingCount = tag.getInt("switchAxeWildSwingCount");
+        switchAxeCounterTicks = tag.getInt("switchAxeCounterTicks");
         chargeBladeSwordMode = tag.getBoolean("chargeBladeSwordMode");
         chargeBladePhials = tag.getInt("chargeBladePhials");
         chargeBladeCharge = tag.getInt("chargeBladeCharge");

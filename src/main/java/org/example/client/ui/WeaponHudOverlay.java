@@ -224,9 +224,46 @@ public final class WeaponHudOverlay {
                 guiGraphics.drawString(font, "Mode: " + mode, x + barWidth + 6, y - 1, 0xFFFFFF, true);
             }
             case "switch_axe" -> {
-                drawGauge(guiGraphics, x, y, barWidth, barHeight, state.getSwitchAxeAmpGauge() / 100.0f, 0xFF66BB6A);
+                // Row 1: Switch Gauge (resource for Sword Mode)
+                float switchRatio = state.getSwitchAxeSwitchGauge() / 100.0f;
+                int switchColor = switchRatio > 0.3f ? 0xFF42A5F5 : 0xFFEF5350; // blue if above 30% morph threshold, red if low
+                drawGauge(guiGraphics, x, y, barWidth, barHeight, switchRatio, switchColor);
+                // Draw 30% threshold marker on gauge
+                int thresholdX = x + Math.round(barWidth * 0.3f);
+                guiGraphics.fill(thresholdX, y - 1, thresholdX + 1, y + barHeight + 1, 0xCCFFFFFF);
+
                 String mode = state.isSwitchAxeSwordMode() ? "Sword" : "Axe";
-                guiGraphics.drawString(font, "Mode: " + mode, x + barWidth + 6, y - 1, 0xFFFFFF, true);
+                guiGraphics.drawString(font, mode, x + barWidth + 6, y - 1, 0xFFFFFF, true);
+
+                // Row 2: Amp Gauge
+                int ampY = y + barHeight + 3;
+                float ampRatio = state.getSwitchAxeAmpGauge() / 100.0f;
+                int ampColor = state.isSwitchAxeAmped() ? 0xFFFFD740 : 0xFF66BB6A;
+                // Pulse effect when amped
+                if (state.isSwitchAxeAmped()) {
+                    long pulse = System.currentTimeMillis() % 1000;
+                    if (pulse < 500) {
+                        ampColor = 0xFFFFAB00;
+                    }
+                }
+                drawGauge(guiGraphics, x, ampY, barWidth, barHeight, ampRatio, ampColor);
+                String ampLabel = state.isSwitchAxeAmped() ? "AMPED" : "Amp";
+                int ampLabelColor = state.isSwitchAxeAmped() ? 0xFFFFD740 : 0xFFBDBDBD;
+                guiGraphics.drawString(font, ampLabel, x + barWidth + 6, ampY - 1, ampLabelColor, true);
+
+                // Power Axe indicator
+                if (state.isSwitchAxePowerAxe()) {
+                    int paY = ampY + barHeight + 3;
+                    int paSec = state.getSwitchAxePowerAxeTicks() / 20;
+                    guiGraphics.drawString(font, "Power Axe [" + paSec + "s]", x, paY, 0xFFFF7043, true);
+                }
+
+                // Cooldown indicator
+                if (state.getSwitchAxeFrcCooldown() > 0) {
+                    int cdY = ampY + barHeight + (state.isSwitchAxePowerAxe() ? 14 : 3);
+                    int cdSec = state.getSwitchAxeFrcCooldown() / 20;
+                    guiGraphics.drawString(font, "CD: " + cdSec + "s", x, cdY, 0xFF9E9E9E, true);
+                }
             }
             case "charge_blade" -> {
                 drawGauge(guiGraphics, x, y, barWidth, barHeight, state.getChargeBladeCharge() / 100.0f, 0xFFFFCA28);
@@ -657,6 +694,25 @@ public final class WeaponHudOverlay {
                 specialLine = "Special: " + specialKey + " (Wyvern's Fire)";
                 specialCombineLine = "Special+LMB+RMB (Wyvern's Fire)";
                 altCombineLine = null;
+            } else if ("switch_axe".equals(weaponId)) {
+                boolean swordMode = state != null && state.isSwitchAxeSwordMode();
+                boolean amped = state != null && state.isSwitchAxeAmped();
+                if (swordMode) {
+                    weaponLine = "Weapon: " + weaponKey + " (Sword Combo)";
+                    altLine = "Alt: " + altKey + " (Counter Rising Slash)";
+                    if (amped) {
+                        specialLine = "Special: " + specialKey + " (Full Release Slash)";
+                    } else {
+                        specialLine = "Special: " + specialKey + " (Element Discharge / Morph)";
+                    }
+                    specialCombineLine = "Hold: " + weaponKey + " (Heavenward Flurry)";
+                } else {
+                    weaponLine = "Weapon: " + weaponKey + " (Axe Combo)";
+                    altLine = "Alt: " + altKey + " (Spiral Burst / Heavy Slam)";
+                    specialLine = "Special: " + specialKey + " (Morph → Sword)";
+                    specialCombineLine = "Hold: " + weaponKey + " (Wild Swing)";
+                }
+                altCombineLine = null;
             }
         }
 
@@ -848,6 +904,38 @@ public final class WeaponHudOverlay {
                     case "tonfa_air_slam": return "Aerial Slam";
                     case "tonfa_drill": return "Pinpoint Drill";
                     case "basic_attack": return resolveTonfaBasicAttackLabel(player, state);
+                    default: return null;
+                }
+            }
+            case "switch_axe": {
+                switch (key) {
+                    // Axe mode attacks
+                    case "sa_axe_overhead": return "Overhead Slash (Axe)";
+                    case "sa_axe_side": return "Side Slash (Axe)";
+                    case "sa_axe_rising": return "Rising Slash (Axe)";
+                    case "sa_spiral_burst": return "Spiral Burst Slash";
+                    case "sa_wild_swing": return "Wild Swing";
+                    case "sa_heavy_slam": return "Heavy Slam";
+                    case "sa_offset_rising": return "Offset Rising Slash";
+                    case "sa_offset_success": return "Counter Follow-up";
+                    // Sword mode attacks
+                    case "sa_sword_overhead": return "Overhead Slash (Sword)";
+                    case "sa_sword_double": return "Double Slash (Sword)";
+                    case "sa_sword_rising": return "Rising Slash (Sword)";
+                    case "sa_heavenward_flurry": return "Heavenward Flurry";
+                    case "sa_counter_rising": return "Counter Rising Slash";
+                    case "sa_counter_success": return "Counter Follow-up";
+                    // Discharge / Finishers
+                    case "sa_element_discharge": return "Element Discharge";
+                    case "sa_full_release": return "Full Release Slash";
+                    case "sa_morph_to_sword": return "Morph Slash → Sword";
+                    case "sa_morph_to_axe": return "Morph → Axe";
+                    case "sa_forced_morph": return "Forced Morph (Gauge Empty)";
+                    // Legacy keys
+                    case "morph": return "Morph";
+                    case "full_release": return "Full Release";
+                    case "elemental_discharge": return "Element Discharge";
+                    case "basic_attack": return state != null && state.isSwitchAxeSwordMode() ? "Sword Slash" : "Axe Slash";
                     default: return null;
                 }
             }

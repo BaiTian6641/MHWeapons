@@ -2,18 +2,88 @@
   "id": "switch_axe",
   "category": "switch_axe",
   "modeAnimation": true,
-  "comboWindowTicks": 12,
+  "comboWindowTicks": 30,
   "comboWindowBufferTicks": 12,
   "chargeMaxTicks": 0,
   "baseDamage": 7.0,
+
+  "switchGauge": {
+    "max": 100.0,
+    "morphThreshold": 30.0,
+    "swordSwingCost": 3.0,
+    "flurryCost": 5.0,
+    "spiralBurstRefill": 30.0,
+    "axeHitGain": 3.0,
+    "axeHitGainPowerAxe": 5.0,
+    "passiveRegenRate": 0.08,
+    "passiveRegenRatePowerAxe": 0.15,
+    "swordPassiveDrain": 0.05
+  },
+
+  "ampGauge": {
+    "max": 100.0,
+    "gainPerHit": 8.0,
+    "flurryGainPerHit": 12.0,
+    "axeHitGain": 5.0,
+    "decayPerTickAxeMode": 0.1
+  },
+
+  "ampedDurationTicks": 900,
+  "powerAxeDurationTicks": 1200,
+  "counterWindowTicks": 15,
+
+  "phial": {
+    "type": "power",
+    "explosionMv": 0.15
+  },
+
+  "wildSwing": {
+    "staminaCost": 10.0
+  },
+
+  "heavenwardFlurry": {
+    "staminaCost": 12.0
+  },
+
   "motionValues": {
     "basic_attack": 1.0,
+    "sa_axe_overhead": 1.0,
+    "sa_axe_side": 0.85,
+    "sa_axe_rising": 0.95,
+    "sa_spiral_burst": 1.3,
+    "sa_wild_swing": 0.7,
+    "sa_heavy_slam": 1.4,
+    "sa_offset_rising": 0.9,
+    "sa_offset_rising_hit": 1.2,
+    "sa_sword_overhead": 1.1,
+    "sa_sword_double": 0.7,
+    "sa_sword_rising": 1.0,
+    "sa_heavenward_flurry": 0.5,
+    "sa_counter_rising_hit": 1.3,
+    "sa_morph_slash": 1.1,
+    "sa_element_discharge": 1.6,
+    "sa_full_release": 3.5,
     "morph": 1.1,
     "sword_slash": 1.2,
     "full_release": 1.8,
     "elemental_discharge": 1.6
   },
+
   "animationSeries": {
+    "axe_combo": [
+      "bettercombat:two_handed_slash_vertical_right",
+      "bettercombat:two_handed_slash_horizontal_left",
+      "bettercombat:two_handed_slash_vertical_left"
+    ],
+    "sword_combo": [
+      "bettercombat:two_handed_slash_vertical_right",
+      "bettercombat:two_handed_slash_horizontal_right",
+      "bettercombat:two_handed_slash_horizontal_left"
+    ],
+    "wild_swing": [
+      "bettercombat:two_handed_slash_horizontal_right",
+      "bettercombat:two_handed_slash_horizontal_left"
+    ],
     "light": [
       "bettercombat:two_handed_slash_horizontal_right",
       "bettercombat:two_handed_slash_horizontal_left",

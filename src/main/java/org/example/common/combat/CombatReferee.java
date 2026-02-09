@@ -70,6 +70,19 @@ public final class CombatReferee {
                 }
             }
 
+            // Switch Axe Counter (Offset Rising Slash / Counter Rising Slash)
+            if (player.getMainHandItem().getItem() instanceof org.example.item.WeaponIdProvider saWeaponId
+                    && "switch_axe".equals(saWeaponId.getWeaponId())) {
+                PlayerWeaponState saState = CapabilityUtil.getPlayerWeaponState(player);
+                PlayerCombatState saCombatState = CapabilityUtil.getPlayerCombatState(player);
+                if (saState != null && saCombatState != null && saState.getSwitchAxeCounterTicks() > 0) {
+                    if (org.example.common.combat.weapon.SwitchAxeHandler.tryConsumeCounter(player, saCombatState, saState)) {
+                        event.setCanceled(true);
+                        return;
+                    }
+                }
+            }
+
             PlayerWeaponState weaponState = CapabilityUtil.getPlayerWeaponState(player);
             if (weaponState != null && weaponState.getHornDefenseLargeTicks() > 0) {
                 event.setAmount(event.getAmount() * 0.8f);
