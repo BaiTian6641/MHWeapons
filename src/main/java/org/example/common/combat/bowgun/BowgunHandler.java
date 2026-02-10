@@ -7,6 +7,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
@@ -15,10 +16,15 @@ import net.minecraft.world.phys.Vec3;
 import org.example.common.capability.player.PlayerCombatState;
 import org.example.common.capability.player.PlayerWeaponState;
 import org.example.common.combat.weapon.WeaponActionType;
+import org.example.common.data.WeaponDataResolver;
 import org.example.common.entity.AmmoProjectileEntity;
+import org.example.common.network.ModNetwork;
+import org.example.common.network.packet.PlayAttackAnimationS2CPacket;
+import org.example.common.util.CapabilityUtil;
 import org.example.item.BowgunItem;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
+import net.minecraftforge.network.PacketDistributor;
 
 /**
  * Central handler for all Bowgun actions: fire, reload, mode switch,
@@ -26,6 +32,7 @@ import com.mojang.logging.LogUtils;
  *
  * Dispatched from WeaponActionHandler when weaponId == "bowgun".
  */
+@SuppressWarnings("null")
 public final class BowgunHandler {
     private static final Logger LOG = LogUtils.getLogger();
     private static final UUID BOWGUN_SPEED_MODIFIER_ID = UUID.fromString("9c6b1f7e-5a1a-4f6a-9f2c-6a0f3db0b2e1");
@@ -150,7 +157,8 @@ public final class BowgunHandler {
 
         spawnProjectile(player, stack, state, ammo, 1.0f);
         int recoil = BowgunMagazineManager.getEffectiveRecoil(stack, ammo);
-        state.setBowgunRecoilTimer(BowgunMagazineManager.getRecoilRecoveryTicks(recoil));
+        int extraClickDelay = 2;
+        state.setBowgunRecoilTimer(BowgunMagazineManager.getRecoilRecoveryTicks(recoil) + extraClickDelay);
         state.setBowgunLastAction(1); // FIRE
         LOG.debug("[Bowgun] Standard fire {} recoil={}", ammo, recoil);
     }
@@ -210,7 +218,8 @@ public final class BowgunHandler {
         if (fired > 0) {
             state.setBowgunGauge(state.getBowgunGauge() - VERSATILE_BURST_COST);
             int recoil = BowgunMagazineManager.getEffectiveRecoil(stack, ammo);
-            state.setBowgunRecoilTimer(BowgunMagazineManager.getRecoilRecoveryTicks(recoil));
+            int extraClickDelay = 1;
+            state.setBowgunRecoilTimer(BowgunMagazineManager.getRecoilRecoveryTicks(recoil) + extraClickDelay);
             state.setBowgunLastAction(3); // VERSATILE_BURST
             LOG.debug("[Bowgun] Versatile burst {} x{}", ammo, fired);
         }
@@ -321,11 +330,13 @@ public final class BowgunHandler {
         String ignitionType = BowgunItem.getIgnitionType(stack);
         boolean hasIgnition = ignitionType != null && !ignitionType.isEmpty();
         if (currentMode == MODE_STANDARD) {
-            int newMode = switch (weightClass) {
-                case 0 -> MODE_RAPID;
-                case 1 -> MODE_VERSATILE;
-                default -> MODE_IGNITION;
-            };
+            int newMode = (hasIgnition && weightClass == 0)
+                ? MODE_IGNITION
+                : switch (weightClass) {
+                    case 0 -> MODE_VERSATILE; // Light default (no ignition accessory)
+                    case 1 -> MODE_VERSATILE;
+                    default -> MODE_IGNITION;
+                };
             state.setBowgunMode(newMode);
             state.setBowgunModeSwitchTicks(5);
             LOG.debug("[Bowgun] Switched to mode {} (weight class {})", newMode, weightClass);
@@ -366,6 +377,7 @@ public final class BowgunHandler {
         if (BowgunMagazineManager.tryReload(player, stack, ammo)) {
             int reloadTicks = BowgunMagazineManager.getReloadTicks(stack, ammo);
             state.setBowgunReloadTimer(reloadTicks);
+            triggerReloadAnimation(player, reloadTicks);
             LOG.debug("[Bowgun] Reload started for {} — {} ticks", ammo, reloadTicks);
             player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.CROSSBOW_LOADING_START, SoundSource.PLAYERS, 0.5f, 1.0f);
@@ -485,6 +497,26 @@ public final class BowgunHandler {
             }
         }
 
+        // Auto-reload when magazine is empty
+        if (state.getBowgunReloadTimer() == 0 && state.getBowgunRecoilTimer() == 0 && !state.isBowgunFiring()) {
+            String ammo = state.getBowgunCurrentAmmo();
+            if (ammo == null || ammo.isEmpty()) {
+                ammo = BowgunMagazineManager.findFirstLoadedAmmo(player, stack);
+                state.setBowgunCurrentAmmo(ammo);
+            }
+            if (ammo != null && !ammo.isEmpty()) {
+                int magCount = BowgunItem.getMagazineCount(stack, ammo);
+                int invCount = BowgunMagazineManager.countAmmoInInventory(player, ammo);
+                if (magCount <= 0 && invCount > 0) {
+                    if (BowgunMagazineManager.tryReload(player, stack, ammo)) {
+                        int reloadTicks = BowgunMagazineManager.getReloadTicks(stack, ammo);
+                        state.setBowgunReloadTimer(reloadTicks);
+                        triggerReloadAnimation(player, reloadTicks);
+                        LOG.debug("[Bowgun] Auto-reload started for {} — {} ticks", ammo, reloadTicks);
+                    }
+                }
+            }
+        }
         // Mode switch animation
         if (state.getBowgunModeSwitchTicks() > 0) {
             state.setBowgunModeSwitchTicks(state.getBowgunModeSwitchTicks() - 1);
@@ -564,6 +596,24 @@ public final class BowgunHandler {
         }
     }
 
+    private static void triggerReloadAnimation(Player player, int reloadTicks) {
+        int actionTicks = Math.max(6, Math.min(20, reloadTicks));
+        PlayerCombatState combatState = CapabilityUtil.getPlayerCombatState(player);
+        if (combatState != null) {
+            combatState.setActionKey("reload");
+            combatState.setActionKeyTicks(actionTicks);
+        }
+        if (player instanceof ServerPlayer serverPlayer) {
+            String animId = WeaponDataResolver.resolveString(player, "animationOverrides", "reload",
+                    "bettercombat:two_handed_slam");
+            float length = WeaponDataResolver.resolveFloat(player, "animationTiming", "length", 20.0f);
+            float upswing = WeaponDataResolver.resolveFloat(player, "animationTiming", "upswing", 0.3f);
+            ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> serverPlayer),
+                    new PlayAttackAnimationS2CPacket(player.getId(), animId, length, upswing, 1.0f,
+                            "reload", actionTicks));
+        }
+    }
+
     public static void clearWeightSpeedModifier(Player player) {
         AttributeInstance attr = player.getAttribute(Attributes.MOVEMENT_SPEED);
         if (attr != null && attr.getModifier(BOWGUN_SPEED_MODIFIER_ID) != null) {
@@ -618,6 +668,7 @@ public final class BowgunHandler {
             LOG.warn("[Bowgun] Unknown ammo type for projectile: {}", ammoId);
             return;
         }
+        BowgunMagazineManager.RangeProfile rangeProfile = BowgunMagazineManager.getRangeProfile(ammoId);
 
         // Damage resolution
         List<String> mods = BowgunItem.getInstalledMods(bowgun);
@@ -641,6 +692,7 @@ public final class BowgunHandler {
                 proj.configure(ammoId, finalDamage / data.pelletCount,
                         data.elementDamage / data.pelletCount, data.statusValue,
                         data.speed, data.gravity, 0, data.pierceCount);
+                proj.setRangeProfile(rangeProfile.min, rangeProfile.optimal, rangeProfile.max);
                 proj.setPos(eyePos.x, eyePos.y - 0.1, eyePos.z);
                 proj.shoot(dir.x, dir.y, dir.z, data.speed, 0.0f);
                 serverLevel.addFreshEntity(proj);
@@ -649,6 +701,7 @@ public final class BowgunHandler {
             AmmoProjectileEntity proj = new AmmoProjectileEntity(serverLevel, player);
             proj.configure(ammoId, finalDamage, data.elementDamage, data.statusValue,
                     data.speed, data.gravity, data.pelletCount, data.pierceCount);
+            proj.setRangeProfile(rangeProfile.min, rangeProfile.optimal, rangeProfile.max);
             proj.setPos(eyePos.x, eyePos.y - 0.1, eyePos.z);
 
             float spread = state.isBowgunAiming() ? 0.0f : 1.5f;

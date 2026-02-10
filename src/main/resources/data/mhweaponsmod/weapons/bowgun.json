@@ -10,6 +10,22 @@
     "gaugeRegenPerTick": 0.25,
     "gaugeRegenOnHit": 5.0,
     "sharpnessEnabled": false,
+    "compatibleAmmo": [
+        "normal_1", "normal_2", "normal_3",
+        "pierce_1", "pierce_2", "pierce_3",
+        "spread_1", "spread_2", "spread_3",
+        "sticky_1", "sticky_2", "sticky_3",
+        "cluster_1", "cluster_2", "cluster_3",
+        "fire_ammo", "water_ammo", "thunder_ammo", "ice_ammo", "dragon_ammo",
+        "poison_ammo_1", "poison_ammo_2",
+        "paralysis_ammo_1", "paralysis_ammo_2",
+        "sleep_ammo_1", "sleep_ammo_2",
+        "exhaust_ammo_1", "exhaust_ammo_2",
+        "recovery_ammo_1", "recovery_ammo_2",
+        "demon_ammo", "armor_ammo", "tranq_ammo",
+        "wyvern_ammo",
+        "slicing_ammo", "flaming_ammo"
+    ],
     "weightClasses": {
         "light": { "min": 0, "max": 30 },
         "medium": { "min": 31, "max": 60 },

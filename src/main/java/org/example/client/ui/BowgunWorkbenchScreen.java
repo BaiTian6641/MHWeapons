@@ -84,10 +84,14 @@ public class BowgunWorkbenchScreen extends AbstractContainerScreen<BowgunWorkben
         // ── Mod slots section ──
         drawSectionHeader(g, this.font, "Modifications", x + 78, y + 17, 118);
         ItemStack bowgun = this.menu.getSlot(0).getItem();
-        boolean showAccessory2 = bowgun.getItem() instanceof BowgunItem
-                && BowgunItem.getWeightClass(bowgun) == 2;
+        int frameworkClass = bowgun.getItem() instanceof BowgunItem
+            ? BowgunItem.getWeightClass(bowgun)
+            : -1;
+        boolean showAccessory2 = frameworkClass == 2;
+        boolean showShield = frameworkClass != 0 && frameworkClass != -1;
         for (int i = 0; i < CATEGORY_LABELS.length; i++) {
             if (i == 7 && !showAccessory2) continue; // hide 2nd accessory slot unless Heavy
+            if (i == 4 && !showShield) continue; // hide shield slot unless Medium/Heavy
             // Row 1: y=28 (slot at 29), Row 2: y=54 (slot at 55)
             int sx = x + 79 + (i % 4) * 20;
             int sy = y + 28 + (i / 4) * 26;
@@ -98,6 +102,7 @@ public class BowgunWorkbenchScreen extends AbstractContainerScreen<BowgunWorkben
         // ── Category labels under each mod slot ──
         for (int i = 0; i < CATEGORY_LABELS.length; i++) {
             if (i == 7 && !showAccessory2) continue; // hide 2nd accessory slot label unless Heavy
+            if (i == 4 && !showShield) continue; // hide shield slot unless Medium/Heavy
             int sx = x + 79 + (i % 4) * 20;
             int sy = y + 28 + (i / 4) * 26;
             // 3-letter abbreviation below each slot

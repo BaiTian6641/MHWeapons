@@ -2,7 +2,6 @@ package org.example.common.combat.weapon;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
@@ -10,15 +9,12 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.PacketDistributor;
-import org.example.common.data.WeaponData;
 import org.example.common.data.WeaponDataResolver;
 import org.example.common.capability.player.PlayerCombatState;
 import org.example.common.capability.player.PlayerWeaponState;
 import org.example.common.compat.BetterCombatAnimationBridge;
 import org.example.common.network.ModNetwork;
-import org.example.common.network.packet.MagnetSpikeZipAnimationS2CPacket;
 import org.example.common.network.packet.PlayAttackAnimationS2CPacket;
 import org.example.common.network.packet.PlayerWeaponStateS2CPacket;
 import org.example.common.util.CapabilityUtil;
@@ -92,12 +88,26 @@ public final class WeaponActionHandler {
                     return;
                 }
             }
-            float cost = StaminaHelper.applyCost(player, player.onGround() ? 20.0f : 30.0f);
+            float baseCost = player.onGround() ? 20.0f : 30.0f;
+            // Bowgun dodge tuning by weight class
+            if ("bowgun".equals(weaponId)) {
+                int weightClass = org.example.item.BowgunItem.getWeightClass(stack);
+                if (weightClass == 2) {
+                    return; // Heavy: no dodge/evade (uses shield)
+                }
+                baseCost = (weightClass == 0) ? (player.onGround() ? 14.0f : 22.0f) : baseCost;
+            }
+            float cost = StaminaHelper.applyCost(player, baseCost);
             if (weaponState != null && weaponState.getStamina() >= cost) {
                 if (combatState != null) {
-                    combatState.setDodgeIFrameTicks(8);
+                    int iFrames = 8;
+                    if ("bowgun".equals(weaponId)) {
+                        int weightClass = org.example.item.BowgunItem.getWeightClass(stack);
+                        iFrames = (weightClass == 0) ? 10 : 8;
+                    }
+                    combatState.setDodgeIFrameTicks(iFrames);
                     combatState.setActionKey("dodge");
-                    combatState.setActionKeyTicks(8);
+                    combatState.setActionKeyTicks(iFrames);
                 }
                 weaponState.addStamina(-cost);
                 weaponState.setStaminaRecoveryDelay(20);
@@ -749,7 +759,7 @@ public final class WeaponActionHandler {
                 Vec3 motion = player.getDeltaMovement();
                 player.setDeltaMovement(motion.x, Math.min(-0.4, motion.y), motion.z);
                 player.hurtMarked = true;
-                if (player.level() instanceof ServerLevel serverLevel) {
+                if (player.level() instanceof ServerLevel) {
                     blastInFront(player, 3.0, 12.0f);
                 }
                 return;

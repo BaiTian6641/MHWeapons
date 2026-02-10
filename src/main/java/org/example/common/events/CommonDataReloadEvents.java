@@ -3,6 +3,7 @@ package org.example.common.events;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import org.example.common.data.AccessoryDataManager;
+import org.example.common.data.BowgunAmmoDataManager;
 import org.example.common.data.DecorationDataManager;
 import org.example.common.data.GearDecorationDataManager;
 import org.example.common.data.compat.BetterCombatAnimationMapManager;
@@ -13,6 +14,7 @@ public final class CommonDataReloadEvents {
     @SubscribeEvent
     public void onAddReloadListener(AddReloadListenerEvent event) {
         event.addListener(AccessoryDataManager.INSTANCE);
+        event.addListener(BowgunAmmoDataManager.INSTANCE);
         event.addListener(DecorationDataManager.INSTANCE);
         event.addListener(GearDecorationDataManager.INSTANCE);
         event.addListener(WeaponDataManager.INSTANCE);

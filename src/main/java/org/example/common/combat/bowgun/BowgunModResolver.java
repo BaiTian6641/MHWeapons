@@ -54,10 +54,10 @@ public final class BowgunModResolver {
         MOD_GUARD_STRENGTH.put("shield_mod_3", 3);
 
         // Accessory mods – ignition cores
-        reg("wyvernheart_core",   "accessory", 10, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyvernheart",  null, null);
-        reg("wyvernpiercer_core", "accessory", 10, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyvernpiercer", null, null);
-        reg("wyverncounter_core", "accessory",  8, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyverncounter", null, null);
-        reg("wyvernblast_core",   "accessory",  8, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyvernblast",   null, null);
+        reg("wyvernheart_core",   "accessory", 6, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyvernheart",  null, null);
+        reg("wyvernpiercer_core", "accessory", 6, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyvernpiercer", null, null);
+        reg("wyverncounter_core", "accessory", 4, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyverncounter", null, null);
+        reg("wyvernblast_core",   "accessory", 4, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyvernblast",   null, null);
 
         // Special mods – scope
         reg("scope", "special", 2, 0, 1.0f, 1.0f, 0, false, 0.3f, null, null, null);

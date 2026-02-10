@@ -45,6 +45,7 @@ public class BowgunWorkbenchMenu extends AbstractContainerMenu {
     private final Container container;
     private final Slot[] modSlots = new Slot[MOD_SLOT_COUNT];
     private boolean showAccessory2 = false;
+    private boolean showShieldSlot = true;
 
     public BowgunWorkbenchMenu(int containerId, Inventory inventory) {
         this(containerId, inventory, new SimpleContainer(1 + MOD_SLOT_COUNT));
@@ -84,6 +85,12 @@ public class BowgunWorkbenchMenu extends AbstractContainerMenu {
                 public boolean mayPlace(ItemStack stack) {
                     if (!(stack.getItem() instanceof BowgunModItem modItem)) return false;
                     if (!MOD_CATEGORIES[catIndex].equals(modItem.getCategory())) return false;
+                    // Require a framework (frame mod) for non-frame slots
+                    if (!"frame".equals(modItem.getCategory())) {
+                        if (!hasFrameworkSelected()) {
+                            return false;
+                        }
+                    }
                     // Disable shield slot for Light framework
                     if ("shield".equals(modItem.getCategory())) {
                         ItemStack bowgun = container.getItem(BOWGUN_SLOT);
@@ -107,6 +114,9 @@ public class BowgunWorkbenchMenu extends AbstractContainerMenu {
                 public boolean isActive() {
                     if (catIndex == 7) {
                         return showAccessory2;
+                    }
+                    if (catIndex == 4) {
+                        return showShieldSlot;
                     }
                     return super.isActive();
                 }
@@ -180,14 +190,48 @@ public class BowgunWorkbenchMenu extends AbstractContainerMenu {
     private void updateAccessorySlotVisibility(ItemStack bowgun) {
         // Second accessory slot is index 7 in MOD_CATEGORIES/modSlots
         int accessory2Index = 7;
+        int frameworkClass = resolveFrameworkClass(bowgun);
+        showAccessory2 = frameworkClass == 2;
+        showShieldSlot = frameworkClass != 0 && frameworkClass != -1;
         if (accessory2Index < modSlots.length && modSlots[accessory2Index] != null) {
-            boolean heavy = bowgun.getItem() instanceof BowgunItem
-                    && BowgunItem.getWeightClass(bowgun) == 2;
-            showAccessory2 = heavy;
-            if (!heavy) {
+            if (!showAccessory2) {
                 container.setItem(MOD_SLOT_START + accessory2Index, ItemStack.EMPTY);
             }
         }
+        if (!showShieldSlot) {
+            int shieldIndex = 4;
+            if (shieldIndex < MOD_SLOT_COUNT) {
+                container.setItem(MOD_SLOT_START + shieldIndex, ItemStack.EMPTY);
+            }
+        }
+    }
+
+    private boolean hasFrameworkSelected() {
+        ItemStack frameStack = container.getItem(MOD_SLOT_START);
+        if (frameStack.getItem() instanceof BowgunModItem modItem) {
+            return "frame".equals(modItem.getCategory());
+        }
+        ItemStack bowgun = container.getItem(BOWGUN_SLOT);
+        if (bowgun.getItem() instanceof BowgunItem) {
+            for (String modId : BowgunItem.getInstalledMods(bowgun)) {
+                if ("frame".equals(BowgunModResolver.getModCategory(modId))) return true;
+            }
+        }
+        return false;
+    }
+
+    private int resolveFrameworkClass(ItemStack bowgun) {
+        ItemStack frameStack = container.getItem(MOD_SLOT_START);
+        if (frameStack.getItem() instanceof BowgunModItem modItem) {
+            String id = modItem.getModId();
+            if ("light_frame".equals(id)) return 0;
+            if ("balanced_frame".equals(id)) return 1;
+            if ("heavy_frame".equals(id)) return 2;
+        }
+        if (bowgun.getItem() instanceof BowgunItem) {
+            return BowgunItem.getWeightClass(bowgun);
+        }
+        return -1;
     }
 
     /**

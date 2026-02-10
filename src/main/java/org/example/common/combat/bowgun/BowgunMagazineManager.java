@@ -1,6 +1,12 @@
 package org.example.common.combat.bowgun;
 
 import java.util.*;
+import com.google.gson.JsonArray;
+import net.minecraft.resources.ResourceLocation;
+import org.example.MHWeaponsMod;
+import org.example.common.data.WeaponData;
+import org.example.common.data.WeaponDataManager;
+import org.example.item.WeaponIdProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.example.item.AmmoItem;
@@ -12,6 +18,7 @@ import com.mojang.logging.LogUtils;
  * Manages per-ammo magazine counts, reload logic, ammo switching, and
  * compatibility checks for the Bowgun weapon system.
  */
+@SuppressWarnings("null")
 public final class BowgunMagazineManager {
     private static final Logger LOG = LogUtils.getLogger();
 
@@ -19,6 +26,7 @@ public final class BowgunMagazineManager {
     // This could be made data-driven later.
 
     public static final Map<String, AmmoData> AMMO_TABLE = new LinkedHashMap<>();
+    private static final Map<String, RangeProfile> RANGE_PROFILES = new HashMap<>();
 
     // Default ammo that every bowgun can load (no mod required)
     public static final Set<String> DEFAULT_AMMO = new LinkedHashSet<>(Arrays.asList(
@@ -37,7 +45,7 @@ public final class BowgunMagazineManager {
     ));
 
     static {
-        // Normal
+        // Normal (defaults, overridden by JSON if present)
         a("normal_1",  4.0f,  0, 0, 3.0f, 0.01f,  0, 1, 0f,   1, "fast",     8, 99,  3, 0.6f);
         a("normal_2",  7.0f,  0, 0, 3.2f, 0.008f, 0, 1, 0f,   2, "normal",   6, 99,  3, 0.55f);
         a("normal_3", 10.0f,  0, 0, 3.5f, 0.005f, 0, 1, 0f,   3, "normal",   4, 60,  0, 0f);
@@ -83,6 +91,53 @@ public final class BowgunMagazineManager {
         // Slicing & Flaming
         a("slicing_ammo",     5.0f, 0, 0, 3.0f, 0.01f, 0, 1, 0f, 3, "slow",     3, 30, 0, 0f);
         a("flaming_ammo",     3.0f, 10.0f, 0, 3.0f, 0.01f, 0, 1, 0f, 3, "normal", 4, 30, 0, 0f);
+
+        // Range profiles (min, optimal, max in blocks)
+        // Normal
+        addRange("normal_1", 4f, 12f, 24f);
+        addRange("normal_2", 4f, 12f, 24f);
+        addRange("normal_3", 4f, 12f, 24f);
+        // Pierce
+        addRange("pierce_1", 8f, 20f, 36f);
+        addRange("pierce_2", 8f, 20f, 36f);
+        addRange("pierce_3", 8f, 20f, 36f);
+        // Spread (close range)
+        addRange("spread_1", 0f, 6f, 12f);
+        addRange("spread_2", 0f, 6f, 12f);
+        addRange("spread_3", 0f, 6f, 12f);
+        // Sticky / Cluster
+        addRange("sticky_1", 6f, 14f, 26f);
+        addRange("sticky_2", 6f, 14f, 26f);
+        addRange("sticky_3", 6f, 14f, 26f);
+        addRange("cluster_1", 6f, 16f, 28f);
+        addRange("cluster_2", 6f, 16f, 28f);
+        addRange("cluster_3", 6f, 16f, 28f);
+        // Elemental
+        addRange("fire_ammo", 6f, 14f, 28f);
+        addRange("water_ammo", 6f, 14f, 28f);
+        addRange("thunder_ammo", 6f, 14f, 28f);
+        addRange("ice_ammo", 6f, 14f, 28f);
+        addRange("dragon_ammo", 8f, 16f, 30f);
+        // Status
+        addRange("poison_ammo_1", 6f, 14f, 28f);
+        addRange("poison_ammo_2", 6f, 14f, 28f);
+        addRange("paralysis_ammo_1", 6f, 14f, 28f);
+        addRange("paralysis_ammo_2", 6f, 14f, 28f);
+        addRange("sleep_ammo_1", 6f, 14f, 28f);
+        addRange("sleep_ammo_2", 6f, 14f, 28f);
+        addRange("exhaust_ammo_1", 6f, 14f, 28f);
+        addRange("exhaust_ammo_2", 6f, 14f, 28f);
+        // Support
+        addRange("recovery_ammo_1", 0f, 10f, 20f);
+        addRange("recovery_ammo_2", 0f, 10f, 20f);
+        addRange("demon_ammo", 0f, 10f, 20f);
+        addRange("armor_ammo", 0f, 10f, 20f);
+        addRange("tranq_ammo", 0f, 10f, 20f);
+        // Wyvern
+        addRange("wyvern_ammo", 8f, 18f, 30f);
+        // Slicing / Flaming
+        addRange("slicing_ammo", 6f, 14f, 26f);
+        addRange("flaming_ammo", 6f, 14f, 26f);
     }
 
     private static void a(String id, float dmg, float elemDmg, float statusVal,
@@ -95,6 +150,23 @@ public final class BowgunMagazineManager {
 
     private BowgunMagazineManager() {}
 
+    public static void loadFromJson(Map<String, AmmoData> ammoData,
+                                    Map<String, RangeProfile> ranges) {
+        AMMO_TABLE.clear();
+        AMMO_TABLE.putAll(ammoData);
+        RANGE_PROFILES.clear();
+        RANGE_PROFILES.putAll(ranges);
+        LOG.info("[Bowgun] Loaded ammo table from JSON: {} entries", AMMO_TABLE.size());
+    }
+
+    public static RangeProfile getRangeProfile(String ammoId) {
+        return RANGE_PROFILES.getOrDefault(ammoId, RangeProfile.DEFAULT);
+    }
+
+    private static void addRange(String id, float min, float optimal, float max) {
+        RANGE_PROFILES.put(id, new RangeProfile(min, optimal, max));
+    }
+
     // ── Public API ───────────────────────────────────────────────────
 
     /**
@@ -103,14 +175,25 @@ public final class BowgunMagazineManager {
      * all ammo types are available.
      */
     public static Set<String> getCompatibleAmmo(ItemStack bowgunStack) {
-        List<String> mods = BowgunItem.getInstalledMods(bowgunStack);
-        if (mods.isEmpty()) {
-            // Placeholder / un-modded bowgun: all ammo types available
-            return new LinkedHashSet<>(AMMO_TABLE.keySet());
+        if (bowgunStack.getItem() instanceof WeaponIdProvider weaponIdProvider) {
+            ResourceLocation id = ResourceLocation.fromNamespaceAndPath(MHWeaponsMod.MODID, weaponIdProvider.getWeaponId());
+            WeaponData data = WeaponDataManager.INSTANCE.get(id);
+            if (data != null && data.getJson().has("compatibleAmmo") && data.getJson().get("compatibleAmmo").isJsonArray()) {
+                JsonArray arr = data.getJson().getAsJsonArray("compatibleAmmo");
+                Set<String> result = new LinkedHashSet<>();
+                for (int i = 0; i < arr.size(); i++) {
+                    String ammoId = arr.get(i).getAsString();
+                    if (AMMO_TABLE.containsKey(ammoId)) {
+                        result.add(ammoId);
+                    }
+                }
+                if (!result.isEmpty()) {
+                    return result;
+                }
+            }
         }
-        Set<String> result = new LinkedHashSet<>(DEFAULT_AMMO);
-        result.addAll(BowgunModResolver.resolveAmmoUnlocks(mods));
-        return result;
+        // Fallback: all ammo types available
+        return new LinkedHashSet<>(AMMO_TABLE.keySet());
     }
 
     /**
@@ -313,6 +396,19 @@ public final class BowgunMagazineManager {
             this.maxStack = maxStack;
             this.rapidFireBurst = rapidBurst;
             this.rapidFireDmgMult = rapidMult;
+        }
+    }
+
+    public static class RangeProfile {
+        public final float min;
+        public final float optimal;
+        public final float max;
+        public static final RangeProfile DEFAULT = new RangeProfile(4f, 12f, 24f);
+
+        public RangeProfile(float min, float optimal, float max) {
+            this.min = min;
+            this.optimal = optimal;
+            this.max = max;
         }
     }
 }

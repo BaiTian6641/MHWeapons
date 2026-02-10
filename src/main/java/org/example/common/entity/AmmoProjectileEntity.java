@@ -34,6 +34,7 @@ import java.util.Set;
  * Supports: normal, pierce, spread, element, status, sticky, cluster, slicing,
  * and special ammo (wyvernheart, wyvernpiercer, wyverncounter, wyvernblast, focus blasts).
  */
+@SuppressWarnings("null")
 public class AmmoProjectileEntity extends Projectile {
     private static final Logger LOG = LogUtils.getLogger();
 
@@ -65,6 +66,13 @@ public class AmmoProjectileEntity extends Projectile {
     // Cluster
     private boolean cluster = false;
     private int clusterBomblets = 0;
+
+    // Range profile
+    private boolean rangeEnabled = false;
+    private float rangeMin = 4.0f;
+    private float rangeOptimal = 12.0f;
+    private float rangeMax = 24.0f;
+    private static final float RANGE_MIN_MULT = 0.5f;
 
     public AmmoProjectileEntity(EntityType<? extends Projectile> type, Level level) {
         super(type, level);
@@ -116,6 +124,13 @@ public class AmmoProjectileEntity extends Projectile {
 
         LOG.debug("[AmmoProjectile] Configured: type={} dmg={} elem={} status={} speed={} pierce={}",
                 ammoType, damage, elementDamage, statusValue, speed, pierceCount);
+    }
+
+    public void setRangeProfile(float min, float optimal, float max) {
+        this.rangeMin = min;
+        this.rangeOptimal = optimal;
+        this.rangeMax = max;
+        this.rangeEnabled = true;
     }
 
     public void setSpecialType(String type) {
@@ -264,11 +279,17 @@ public class AmmoProjectileEntity extends Projectile {
                 : damageSources().generic();
 
         float totalDamage = damage;
+        float rangeMult = 1.0f;
+        if (rangeEnabled && owner != null) {
+            float dist = (float) owner.distanceTo(target);
+            rangeMult = computeRangeMultiplier(dist);
+            totalDamage *= rangeMult;
+        }
         target.hurt(source, totalDamage);
 
         // Element damage as secondary
         if (elementDamage > 0 && target instanceof LivingEntity living) {
-            living.hurt(source, elementDamage);
+            living.hurt(source, elementDamage * rangeMult);
             applyElementEffect(living);
         }
 
@@ -301,6 +322,13 @@ public class AmmoProjectileEntity extends Projectile {
             spawnClusterBomblets();
             discard();
         } else {
+            // Support ammo cloud effects
+            if (level() instanceof ServerLevel serverLevel) {
+                String ammoType = getAmmoType();
+                if (isSupportAmmo(ammoType)) {
+                    spawnSupportCloud(serverLevel, owner, ammoType);
+                }
+            }
             // Impact particles — distinct per ammo category
             if (level() instanceof ServerLevel serverLevel) {
                 String ammoType = getAmmoType();
@@ -351,6 +379,17 @@ public class AmmoProjectileEntity extends Projectile {
         }
     }
 
+    private float computeRangeMultiplier(float distance) {
+        if (distance <= rangeMin) return RANGE_MIN_MULT;
+        if (distance >= rangeMax) return RANGE_MIN_MULT;
+        if (distance <= rangeOptimal) {
+            float t = (distance - rangeMin) / Math.max(0.01f, (rangeOptimal - rangeMin));
+            return RANGE_MIN_MULT + t * (1.0f - RANGE_MIN_MULT);
+        }
+        float t = (distance - rangeOptimal) / Math.max(0.01f, (rangeMax - rangeOptimal));
+        return 1.0f - t * (1.0f - RANGE_MIN_MULT);
+    }
+
     @Override
     protected void onHitBlock(BlockHitResult result) {
         if (level().isClientSide) return;
@@ -374,9 +413,61 @@ public class AmmoProjectileEntity extends Projectile {
         }
 
         if (level() instanceof ServerLevel serverLevel) {
+            String ammoType = getAmmoType();
+            if (isSupportAmmo(ammoType)) {
+                spawnSupportCloud(serverLevel, getOwner(), ammoType);
+            }
             serverLevel.sendParticles(ParticleTypes.SMOKE, getX(), getY(), getZ(), 3, 0.05, 0.05, 0.05, 0.01);
         }
         discard();
+    }
+
+    private boolean isSupportAmmo(String ammoType) {
+        return "recovery_ammo_1".equals(ammoType)
+                || "recovery_ammo_2".equals(ammoType)
+                || "demon_ammo".equals(ammoType)
+                || "armor_ammo".equals(ammoType)
+                || "tranq_ammo".equals(ammoType);
+    }
+
+    private void spawnSupportCloud(ServerLevel serverLevel, Entity owner, String ammoType) {
+        float radius = 4.0f;
+        serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER, getX(), getY() + 0.2, getZ(),
+                20, 0.6, 0.6, 0.6, 0.05);
+
+        for (LivingEntity entity : serverLevel.getEntitiesOfClass(LivingEntity.class,
+                getBoundingBox().inflate(radius), e -> e != null)) {
+            if (!isFriendly(entity, owner)) continue;
+            if (ammoType.startsWith("recovery_ammo")) {
+                float heal = ammoType.endsWith("2") ? 8.0f : 4.0f;
+                entity.heal(heal);
+                serverLevel.sendParticles(ParticleTypes.HEART, entity.getX(), entity.getY() + 1.2, entity.getZ(),
+                        3, 0.3, 0.3, 0.3, 0.05);
+            } else if ("demon_ammo".equals(ammoType)) {
+                entity.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                        net.minecraft.world.effect.MobEffects.DAMAGE_BOOST, 200, 0));
+            } else if ("armor_ammo".equals(ammoType)) {
+                entity.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                        net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE, 200, 0));
+            } else if ("tranq_ammo".equals(ammoType)) {
+                entity.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                        net.minecraft.world.effect.MobEffects.REGENERATION, 100, 0));
+            }
+        }
+    }
+
+    private boolean isFriendly(LivingEntity entity, Entity owner) {
+        if (owner == null) return entity instanceof net.minecraft.world.entity.player.Player;
+        if (entity == owner) return true;
+        if (owner instanceof net.minecraft.world.entity.player.Player op
+                && entity instanceof net.minecraft.world.entity.player.Player ep) {
+            return op.getTeam() == null || op.getTeam() == ep.getTeam();
+        }
+        if (entity instanceof net.minecraft.world.entity.TamableAnimal ta
+                && owner instanceof net.minecraft.world.entity.LivingEntity le) {
+            return ta.isOwnedBy(le);
+        }
+        return false;
     }
 
     private void explode() {
