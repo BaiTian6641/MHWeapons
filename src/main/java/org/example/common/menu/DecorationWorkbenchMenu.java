@@ -50,7 +50,7 @@ public class DecorationWorkbenchMenu extends AbstractContainerMenu {
         }
 
         int startX = 8;
-        int startY = 138;
+        int startY = 148;
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 this.addSlot(new Slot(inventory, 9 + row * 9 + col, startX + col * slotSize, startY + row * slotSize));

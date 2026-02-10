@@ -48,7 +48,7 @@ public class DecorationWorkbenchScreen extends AbstractContainerScreen<Decoratio
     public DecorationWorkbenchScreen(DecorationWorkbenchMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
         this.imageWidth = 200;
-        this.imageHeight = 232;
+        this.imageHeight = 240;
         this.inventoryLabelY = this.imageHeight - 94;
     }
 
@@ -58,7 +58,7 @@ public class DecorationWorkbenchScreen extends AbstractContainerScreen<Decoratio
     protected void init() {
         super.init();
         int btnX = this.leftPos + 8;
-        int btnY = this.topPos + 88;
+        int btnY = this.topPos + 90;
 
         this.addRenderableWidget(Button.builder(Component.literal("✔ Install"), btn -> sendButton(0))
                 .bounds(btnX, btnY, 60, 18)
@@ -67,7 +67,7 @@ public class DecorationWorkbenchScreen extends AbstractContainerScreen<Decoratio
                 .bounds(btnX + 64, btnY, 60, 18)
                 .build());
 
-        int filterY = btnY + 22;
+        int filterY = btnY + 26;
         this.filterAllButton = this.addRenderableWidget(Button.builder(Component.literal("All"), btn -> sendButton(2))
                 .bounds(btnX, filterY, 40, 16)
                 .build());
@@ -113,11 +113,11 @@ public class DecorationWorkbenchScreen extends AbstractContainerScreen<Decoratio
         drawPanel(g, x + 3, y + 46, 70, 38, 0xFF16162A, COL_PANEL_BORDER);
 
         // ── Player inventory separator ──
-        drawHDivider(g, x + 4, y + 130, w - 8);
+        drawHDivider(g, x + 4, y + 140, w - 8);
 
         // ── Player inventory background slots ──
         int invStartX = x + 8;
-        int invStartY = y + 138;
+        int invStartY = y + 148;
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 drawSlot(g, invStartX + col * 18 - 1, invStartY + row * 18 - 1);

@@ -2,6 +2,10 @@ package org.example.common.combat.bowgun;
 
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -24,6 +28,7 @@ import com.mojang.logging.LogUtils;
  */
 public final class BowgunHandler {
     private static final Logger LOG = LogUtils.getLogger();
+    private static final UUID BOWGUN_SPEED_MODIFIER_ID = UUID.fromString("9c6b1f7e-5a1a-4f6a-9f2c-6a0f3db0b2e1");
 
     // Mode constants matching PlayerWeaponState.bowgunMode
     public static final int MODE_STANDARD = 0;
@@ -313,6 +318,8 @@ public final class BowgunHandler {
         // Mode switch
         int weightClass = BowgunItem.getWeightClass(stack);
         int currentMode = state.getBowgunMode();
+        String ignitionType = BowgunItem.getIgnitionType(stack);
+        boolean hasIgnition = ignitionType != null && !ignitionType.isEmpty();
         if (currentMode == MODE_STANDARD) {
             int newMode = switch (weightClass) {
                 case 0 -> MODE_RAPID;
@@ -324,6 +331,13 @@ public final class BowgunHandler {
             LOG.debug("[Bowgun] Switched to mode {} (weight class {})", newMode, weightClass);
             player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.CROSSBOW_LOADING_MIDDLE, SoundSource.PLAYERS, 0.7f, 1.5f);
+        } else if (hasIgnition && currentMode != MODE_IGNITION) {
+            // Allow player to choose Ignition even on Light/Medium when ignition accessory is installed
+            state.setBowgunMode(MODE_IGNITION);
+            state.setBowgunModeSwitchTicks(5);
+            LOG.debug("[Bowgun] Switched to IGNITION (accessory installed)");
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.CROSSBOW_LOADING_MIDDLE, SoundSource.PLAYERS, 0.7f, 1.2f);
         } else {
             state.setBowgunMode(MODE_STANDARD);
             state.setBowgunModeSwitchTicks(5);
@@ -454,6 +468,8 @@ public final class BowgunHandler {
         ItemStack stack = player.getMainHandItem();
         if (!(stack.getItem() instanceof BowgunItem)) return;
 
+        applyWeightSpeedModifier(player, stack);
+
         // Recoil timer countdown
         if (state.getBowgunRecoilTimer() > 0) {
             state.setBowgunRecoilTimer(state.getBowgunRecoilTimer() - 1);
@@ -545,6 +561,37 @@ public final class BowgunHandler {
         if (state.getBowgunLastAction() > 0 && state.getBowgunRecoilTimer() <= 0
                 && state.getBowgunReloadTimer() <= 0) {
             state.setBowgunLastAction(0);
+        }
+    }
+
+    public static void clearWeightSpeedModifier(Player player) {
+        AttributeInstance attr = player.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (attr != null && attr.getModifier(BOWGUN_SPEED_MODIFIER_ID) != null) {
+            attr.removeModifier(BOWGUN_SPEED_MODIFIER_ID);
+        }
+    }
+
+    private static void applyWeightSpeedModifier(Player player, ItemStack bowgunStack) {
+        AttributeInstance attr = player.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (attr == null) return;
+
+        int weight = BowgunItem.getWeight(bowgunStack);
+        // Slight movement effect: lighter = small bonus, heavier = small penalty
+        double delta = (BowgunItem.DEFAULT_WEIGHT - weight) / 400.0; // ±0.10 at extremes
+        delta = Math.max(-0.08, Math.min(0.06, delta));
+
+        AttributeModifier existing = attr.getModifier(BOWGUN_SPEED_MODIFIER_ID);
+        if (existing != null) {
+            attr.removeModifier(existing);
+        }
+
+        if (delta != 0.0) {
+            attr.addTransientModifier(new AttributeModifier(
+                BOWGUN_SPEED_MODIFIER_ID,
+                "BowgunWeightSpeed",
+                delta,
+                AttributeModifier.Operation.MULTIPLY_BASE
+            ));
         }
     }
 

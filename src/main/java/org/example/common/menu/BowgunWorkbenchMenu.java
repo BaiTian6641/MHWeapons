@@ -28,21 +28,23 @@ import java.util.Map;
  * Menu for the Bowgun Modification Workbench.
  * Layout:
  *  - Slot 0: Bowgun weapon slot
- *  - Slots 1-7: Modification slots (one per category: frame, barrel, stock, magazine, shield, special, cosmetic)
+ *  - Slots 1-9: Modification slots (frame, barrel, stock, magazine, shield, special, accessory, accessory+, cosmetic)
  *  - Slots 8+: Player inventory (3x9 + hotbar)
  *
- * Category names: frame, barrel, stock, magazine, shield, special, cosmetic
+ * Category names: frame, barrel, stock, magazine, shield, special, accessory, accessory, cosmetic
  */
 public class BowgunWorkbenchMenu extends AbstractContainerMenu {
     private static final Logger LOG = LogUtils.getLogger();
-    private static final int MOD_SLOT_COUNT = 7;
+    private static final int MOD_SLOT_COUNT = 9;
     private static final int BOWGUN_SLOT = 0;
     private static final int MOD_SLOT_START = 1;
-    private static final String[] MOD_CATEGORIES = {
-            "frame", "barrel", "stock", "magazine", "shield", "special", "cosmetic"
-    };
+                private static final String[] MOD_CATEGORIES = {
+                    "frame", "barrel", "stock", "magazine", "shield", "special", "accessory", "accessory", "cosmetic"
+                };
 
     private final Container container;
+    private final Slot[] modSlots = new Slot[MOD_SLOT_COUNT];
+    private boolean showAccessory2 = false;
 
     public BowgunWorkbenchMenu(int containerId, Inventory inventory) {
         this(containerId, inventory, new SimpleContainer(1 + MOD_SLOT_COUNT));
@@ -53,7 +55,7 @@ public class BowgunWorkbenchMenu extends AbstractContainerMenu {
         this.container = container;
 
         // Bowgun slot
-        this.addSlot(new Slot(container, BOWGUN_SLOT, 26, 44) {
+        this.addSlot(new Slot(container, BOWGUN_SLOT, 26, 35) {
             @Override
             public boolean mayPlace(ItemStack stack) {
                 return stack.getItem() instanceof BowgunItem;
@@ -74,13 +76,39 @@ public class BowgunWorkbenchMenu extends AbstractContainerMenu {
         // Mod slots
         for (int i = 0; i < MOD_SLOT_COUNT; i++) {
             final int catIndex = i;
+            // Row 1 (0-3): y=29, Row 2 (4-7): y=55, Row 3 (8): y=81
             int x = 80 + (i % 4) * 20;
-            int y = 24 + (i / 4) * 20;
-            this.addSlot(new Slot(container, MOD_SLOT_START + i, x, y) {
+            int y = 29 + (i / 4) * 26;
+            Slot modSlot = new Slot(container, MOD_SLOT_START + i, x, y) {
                 @Override
                 public boolean mayPlace(ItemStack stack) {
                     if (!(stack.getItem() instanceof BowgunModItem modItem)) return false;
-                    return MOD_CATEGORIES[catIndex].equals(modItem.getCategory());
+                    if (!MOD_CATEGORIES[catIndex].equals(modItem.getCategory())) return false;
+                    // Disable shield slot for Light framework
+                    if ("shield".equals(modItem.getCategory())) {
+                        ItemStack bowgun = container.getItem(BOWGUN_SLOT);
+                        if (bowgun.getItem() instanceof BowgunItem) {
+                            return BowgunItem.getWeightClass(bowgun) != 0;
+                        }
+                        return false;
+                    }
+                    // Second accessory slot only available on Heavy framework
+                    if ("accessory".equals(modItem.getCategory()) && catIndex == 7) {
+                        ItemStack bowgun = container.getItem(BOWGUN_SLOT);
+                        if (bowgun.getItem() instanceof BowgunItem) {
+                            return BowgunItem.getWeightClass(bowgun) == 2;
+                        }
+                        return false;
+                    }
+                    return true;
+                }
+
+                @Override
+                public boolean isActive() {
+                    if (catIndex == 7) {
+                        return showAccessory2;
+                    }
+                    return super.isActive();
                 }
 
                 @Override
@@ -93,13 +121,15 @@ public class BowgunWorkbenchMenu extends AbstractContainerMenu {
                     super.setChanged();
                     onModChanged();
                 }
-            });
+            };
+            this.addSlot(modSlot);
+            modSlots[i] = modSlot;
         }
 
         // Player inventory
         int slotSize = 18;
         int startX = 8;
-        int startY = 110;
+        int startY = 146;
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 this.addSlot(new Slot(inventory, 9 + row * 9 + col,
@@ -121,6 +151,7 @@ public class BowgunWorkbenchMenu extends AbstractContainerMenu {
         for (int i = 0; i < MOD_SLOT_COUNT; i++) {
             container.setItem(MOD_SLOT_START + i, ItemStack.EMPTY);
         }
+        updateAccessorySlotVisibility(bowgun);
         if (bowgun.isEmpty() || !(bowgun.getItem() instanceof BowgunItem)) return;
 
         // Load existing mods from NBT and resolve them to item instances
@@ -136,12 +167,25 @@ public class BowgunWorkbenchMenu extends AbstractContainerMenu {
                 LOG.warn("[BowgunWorkbench] No registered item for mod ID: {}", modId);
                 continue;
             }
-            // Find the correct category slot
+            // Find the correct category slot (supports multiple slots per category)
             String category = BowgunModResolver.getModCategory(modId);
-            int slotIndex = getCategorySlotIndex(category);
-            if (slotIndex >= 0 && container.getItem(MOD_SLOT_START + slotIndex).isEmpty()) {
+            int slotIndex = getFirstEmptyCategorySlot(category);
+            if (slotIndex >= 0) {
                 container.setItem(MOD_SLOT_START + slotIndex, modStack.copy());
                 LOG.debug("[BowgunWorkbench] Restored mod '{}' to slot {} ({})", modId, slotIndex, category);
+            }
+        }
+    }
+
+    private void updateAccessorySlotVisibility(ItemStack bowgun) {
+        // Second accessory slot is index 7 in MOD_CATEGORIES/modSlots
+        int accessory2Index = 7;
+        if (accessory2Index < modSlots.length && modSlots[accessory2Index] != null) {
+            boolean heavy = bowgun.getItem() instanceof BowgunItem
+                    && BowgunItem.getWeightClass(bowgun) == 2;
+            showAccessory2 = heavy;
+            if (!heavy) {
+                container.setItem(MOD_SLOT_START + accessory2Index, ItemStack.EMPTY);
             }
         }
     }
@@ -163,9 +207,21 @@ public class BowgunWorkbenchMenu extends AbstractContainerMenu {
     /**
      * Get the slot index (0-6) for a given mod category.
      */
-    private static int getCategorySlotIndex(String category) {
+    private int getFirstEmptyCategorySlot(String category) {
         for (int i = 0; i < MOD_CATEGORIES.length; i++) {
-            if (MOD_CATEGORIES[i].equals(category)) return i;
+            if (MOD_CATEGORIES[i].equals(category)
+                    && container.getItem(MOD_SLOT_START + i).isEmpty()) {
+                // If this is the second accessory slot, enforce heavy framework
+                if ("accessory".equals(category) && i == 7) {
+                    ItemStack bowgun = container.getItem(BOWGUN_SLOT);
+                    if (bowgun.getItem() instanceof BowgunItem) {
+                        if (BowgunItem.getWeightClass(bowgun) != 2) {
+                            continue;
+                        }
+                    }
+                }
+                return i;
+            }
         }
         return -1;
     }

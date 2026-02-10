@@ -595,7 +595,7 @@ public final class WeaponHudOverlay {
         List<String> mods = BowgunItem.getInstalledMods(bowgun);
 
         // Mod categories: icon symbol, slot color, and currently installed mod (if any)
-        // Order: Frame, Barrel, Stock, Magazine, Shield, Special/Ignition, Ammo Expansion
+        // Order: Frame, Barrel, Stock, Magazine, Shield, Special, Accessory, Accessory+, Ammo Expansion
         String[][] categories = {
             {"F", "frame",    null},  // Frame
             {"B", "barrel",   null},  // Barrel
@@ -603,6 +603,8 @@ public final class WeaponHudOverlay {
             {"M", "magazine", null},  // Magazine
             {"G", "shield",   null},  // Shield/Guard
             {"\u2605", "special",  null},  // Special (★)
+            {"I", "accessory", null},  // Ignition accessory
+            {"I", "accessory", null},  // Ignition accessory+ (Heavy)
             {"A", "ammo",     null},  // Ammo expansion
         };
 
@@ -672,6 +674,7 @@ public final class WeaponHudOverlay {
             case "magazine" -> 0xFFFFCA28; // Yellow - capacity
             case "shield"   -> 0xFF78909C; // Blue-grey - defensive
             case "special"  -> 0xFFAB47BC; // Purple - special abilities
+            case "accessory"-> 0xFF26C6DA; // Teal - ignition accessory
             case "ammo"     -> 0xFFFF7043; // Orange - ammo expansion
             default         -> 0xFFBDBDBD; // Grey
         };

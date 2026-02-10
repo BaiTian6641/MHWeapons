@@ -29,8 +29,8 @@ public final class BowgunModResolver {
     static {
         // Frame mods
         reg("light_frame",    "frame",  -20, 0, 0.85f, 0.95f, 0, false, 0.0f, null, null, null);
-        reg("balanced_frame", "frame",    5, 0, 1.0f,  1.0f,  0, false, 0.0f, null, null, null);
-        reg("heavy_frame",    "frame",   25,-1, 1.15f, 1.1f,  0, false, 0.0f, null, null, null);
+        reg("balanced_frame", "frame",    0, 0, 1.0f,  1.0f,  0, false, 0.0f, null, null, null);
+        reg("heavy_frame",    "frame",   20,-1, 1.15f, 1.1f,  0, false, 0.0f, null, null, null);
 
         // Barrel mods
         reg("long_barrel",    "barrel",   5,-1, 1.0f,  1.0f,  0, false, 0.0f, null, null, null);
@@ -53,11 +53,11 @@ public final class BowgunModResolver {
         reg("shield_mod_3", "shield", 20, 0, 1.0f, 1.0f, 0, true,  0.0f, null, null, null);
         MOD_GUARD_STRENGTH.put("shield_mod_3", 3);
 
-        // Special mods – ignition cores
-        reg("wyvernheart_core",   "special", 10, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyvernheart",  null, null);
-        reg("wyvernpiercer_core", "special", 10, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyvernpiercer", null, null);
-        reg("wyverncounter_core", "special",  8, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyverncounter", null, null);
-        reg("wyvernblast_core",   "special",  8, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyvernblast",   null, null);
+        // Accessory mods – ignition cores
+        reg("wyvernheart_core",   "accessory", 10, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyvernheart",  null, null);
+        reg("wyvernpiercer_core", "accessory", 10, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyvernpiercer", null, null);
+        reg("wyverncounter_core", "accessory",  8, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyverncounter", null, null);
+        reg("wyvernblast_core",   "accessory",  8, 0, 1.0f, 1.0f, 0, false, 0.0f, "wyvernblast",   null, null);
 
         // Special mods – scope
         reg("scope", "special", 2, 0, 1.0f, 1.0f, 0, false, 0.3f, null, null, null);

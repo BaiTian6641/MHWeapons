@@ -457,7 +457,10 @@ public final class CombatReferee {
     }
 
     private boolean isRangedWeapon(String weaponId) {
-        return "bow".equals(weaponId) || "light_bowgun".equals(weaponId) || "heavy_bowgun".equals(weaponId);
+        return "bow".equals(weaponId)
+                || "bowgun".equals(weaponId)
+                || "light_bowgun".equals(weaponId)
+                || "heavy_bowgun".equals(weaponId);
     }
 
     private boolean hasOffensiveGuard(Player player) {

@@ -397,6 +397,8 @@ public final class WeaponStateEvents {
         if ("bowgun".equals(weaponId)) {
             org.example.common.combat.bowgun.BowgunHandler.tick(player, state);
             org.example.common.combat.bowgun.BowgunGuardHandler.tickGuard(player, state);
+        } else {
+            org.example.common.combat.bowgun.BowgunHandler.clearWeightSpeedModifier(player);
         }
 
         // Sync max shells based on held weapon's shelling type

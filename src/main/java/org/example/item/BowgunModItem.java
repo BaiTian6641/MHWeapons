@@ -17,7 +17,7 @@ public class BowgunModItem extends Item {
     private static final Logger LOG = LogUtils.getLogger();
 
     private final String modId;
-    private final String category; // frame, barrel, stock, magazine, shield, special
+    private final String category; // frame, barrel, stock, magazine, shield, special, accessory, cosmetic
     private final int weight;
     private final String description;
 
