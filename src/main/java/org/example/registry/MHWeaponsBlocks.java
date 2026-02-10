@@ -11,6 +11,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import org.example.MHWeaponsMod;
 import org.example.block.DecorationWorkbenchBlock;
+import org.example.block.BowgunWorkbenchBlock;
 
 @SuppressWarnings("null")
 public final class MHWeaponsBlocks {
@@ -23,6 +24,12 @@ public final class MHWeaponsBlocks {
 
     public static final RegistryObject<Item> DECORATION_WORKBENCH_ITEM = BLOCK_ITEMS.register("decoration_workbench",
             () -> new BlockItem(DECORATION_WORKBENCH.get(), new Item.Properties()));
+
+    public static final RegistryObject<Block> BOWGUN_WORKBENCH = BLOCKS.register("bowgun_workbench",
+            () -> new BowgunWorkbenchBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.5f).sound(SoundType.METAL)));
+
+    public static final RegistryObject<Item> BOWGUN_WORKBENCH_ITEM = BLOCK_ITEMS.register("bowgun_workbench",
+            () -> new BlockItem(BOWGUN_WORKBENCH.get(), new Item.Properties()));
 
     private MHWeaponsBlocks() {
     }

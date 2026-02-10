@@ -14,9 +14,16 @@ config="mhweaponsmod.mixins.json"
 
 [[dependencies.mhweaponsmod]]
 # Better Combat will be used to handle comprehensive attack/animation systems.
-# Assumption: Better Combat's mod id is `bettercombat`. If the actual mod id differs, update this value.
 modId="bettercombat"
 mandatory=true
 versionRange="[1.8,)"
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies.mhweaponsmod]]
+# Moonlight Library — dynamic texture generation, runtime resource packs
+modId="moonlight"
+mandatory=true
+versionRange="[1.20-2.16,)"
 ordering="AFTER"
 side="BOTH"

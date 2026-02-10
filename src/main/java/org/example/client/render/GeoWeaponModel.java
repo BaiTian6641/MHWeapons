@@ -40,6 +40,7 @@ public class GeoWeaponModel extends GeoModel<GeoWeaponItem> {
             case "switch_axe" -> "textures/item/diamond_axe.png";
             case "charge_blade" -> "textures/item/diamond_sword.png";
             case "insect_glaive" -> "textures/item/iron_sword.png";
+            case "bowgun" -> "textures/item/crossbow_standby.png";
             default -> "textures/item/diamond_sword.png";
         };
     }

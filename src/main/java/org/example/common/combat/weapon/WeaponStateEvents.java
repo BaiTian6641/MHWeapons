@@ -393,6 +393,12 @@ public final class WeaponStateEvents {
             state.setGunlanceCooldown(state.getGunlanceCooldown() - 1);
         }
 
+        // ── Bowgun tick ──
+        if ("bowgun".equals(weaponId)) {
+            org.example.common.combat.bowgun.BowgunHandler.tick(player, state);
+            org.example.common.combat.bowgun.BowgunGuardHandler.tickGuard(player, state);
+        }
+
         // Sync max shells based on held weapon's shelling type
         if ("gunlance".equals(weaponId) && player.getMainHandItem().getItem() instanceof org.example.item.GunlanceItem gl) {
             gl.syncMaxShells(state);
@@ -489,6 +495,55 @@ public final class WeaponStateEvents {
             if ((player.tickCount - state.getSwitchAxeComboTick()) > comboTimeout) {
                 state.setSwitchAxeComboIndex(0);
                 state.setSwitchAxeWildSwingCount(0);
+            }
+        }
+
+        // ── Charge Blade timers ──
+
+        // CB: Shield Charge timer countdown
+        if (state.isCbShieldCharged()) {
+            int remaining = state.getCbShieldChargeTicks() - 1;
+            if (remaining <= 0) {
+                state.setCbShieldCharged(false);
+                state.setCbShieldChargeTicks(0);
+            } else {
+                state.setCbShieldChargeTicks(remaining);
+            }
+        }
+
+        // CB: Sword Boost timer countdown
+        if (state.isCbSwordBoosted()) {
+            int remaining = state.getCbSwordBoostTicks() - 1;
+            if (remaining <= 0) {
+                state.setCbSwordBoosted(false);
+                state.setCbSwordBoostTicks(0);
+            } else {
+                state.setCbSwordBoostTicks(remaining);
+            }
+        }
+
+        // CB: Power Axe timer countdown
+        if (state.isCbPowerAxe()) {
+            int remaining = state.getCbPowerAxeTicks() - 1;
+            if (remaining <= 0) {
+                state.setCbPowerAxe(false);
+                state.setCbPowerAxeTicks(0);
+            } else {
+                state.setCbPowerAxeTicks(remaining);
+            }
+        }
+
+        // CB: Guard Point window countdown
+        if (state.getCbGuardPointTicks() > 0) {
+            state.setCbGuardPointTicks(state.getCbGuardPointTicks() - 1);
+        }
+
+        // CB: Combo timeout reset
+        if ("charge_blade".equals(weaponId)) {
+            int comboTimeout = 20;
+            if ((player.tickCount - state.getCbComboTick()) > comboTimeout) {
+                state.setCbComboIndex(0);
+                state.setCbDischargeStage(0);
             }
         }
 
@@ -764,6 +819,7 @@ public final class WeaponStateEvents {
             case "tonfa" -> state.addTonfaComboGauge(6.0f);
             case "magnet_spike" -> state.addMagnetGauge(6.0f);
             case "accel_axe" -> state.addAccelFuel(2);
+            case "bowgun" -> org.example.common.combat.bowgun.BowgunHandler.onHit(player, state);
             default -> {
             }
         }

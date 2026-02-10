@@ -25,6 +25,8 @@ import org.example.common.data.WeaponData;
 import org.example.common.data.WeaponDataResolver;
 import org.example.common.util.CapabilityUtil;
 import org.example.common.entity.KinsectEntity;
+import org.example.common.combat.bowgun.BowgunModResolver;
+import org.example.item.BowgunItem;
 import org.example.item.MHTiers;
 import org.example.item.WeaponIdProvider;
 
@@ -63,8 +65,15 @@ public final class WeaponHudOverlay {
         renderEffectIcons(guiGraphics, minecraft, player, barX, barY - 10);
         renderPlayerBars(guiGraphics, barX, barY, player, weaponState);
 
-        int sharpness = resolveSharpness(stack);
-        renderSharpnessBlade(guiGraphics, barX, barY + 18, sharpness, stack);
+        boolean hideSharpness = false;
+        if (stack.getItem() instanceof WeaponIdProvider weaponIdProvider) {
+            String weaponId = weaponIdProvider.getWeaponId();
+            hideSharpness = "bow".equals(weaponId) || "bowgun".equals(weaponId);
+        }
+        if (!hideSharpness) {
+            int sharpness = resolveSharpness(stack);
+            renderSharpnessBlade(guiGraphics, barX, barY + 18, sharpness, stack);
+        }
 
         if (stack.getItem() instanceof WeaponIdProvider weaponIdProvider) {
             if (weaponState != null) {
@@ -347,8 +356,51 @@ public final class WeaponHudOverlay {
                 }
             }
             case "charge_blade" -> {
-                drawGauge(guiGraphics, x, y, barWidth, barHeight, state.getChargeBladeCharge() / 100.0f, 0xFFFFCA28);
-                guiGraphics.drawString(font, "Phials: " + state.getChargeBladePhials(), x + barWidth + 6, y - 1, 0xFFFFFF, true);
+                // Row 1: Sword Energy gauge + Mode label
+                float energyRatio = state.getChargeBladeCharge() / 100.0f;
+                int energyColor;
+                if (state.getChargeBladeCharge() >= 80) {
+                    energyColor = 0xFFFF1744; // Red (overheat warning)
+                } else if (state.getChargeBladeCharge() >= 60) {
+                    energyColor = 0xFFFF9100; // Orange (red gauge)
+                } else if (state.getChargeBladeCharge() >= 30) {
+                    energyColor = 0xFFFFCA28; // Yellow
+                } else {
+                    energyColor = 0xFF66BB6A; // Green (low)
+                }
+                drawGauge(guiGraphics, x, y, barWidth, barHeight, energyRatio, energyColor);
+                String cbMode = state.isChargeBladeSwordMode() ? "Sword" : "Axe";
+                guiGraphics.drawString(font, cbMode, x + barWidth + 6, y - 1, 0xFFFFFF, true);
+
+                // Row 2: Phial icons (filled vs empty)
+                int phialY = y + barHeight + 3;
+                int phialCount = state.getChargeBladePhials();
+                StringBuilder phialStr = new StringBuilder();
+                for (int i = 0; i < 5; i++) {
+                    phialStr.append(i < phialCount ? "\u25C6" : "\u25C7"); // ◆ vs ◇
+                    if (i < 4) phialStr.append(" ");
+                }
+                int phialColor = phialCount >= 5 ? 0xFFFFD740 : (phialCount > 0 ? 0xFF42A5F5 : 0xFF9E9E9E);
+                guiGraphics.drawString(font, phialStr.toString(), x, phialY, phialColor, true);
+
+                // Row 3: Shield Charge / Sword Boost / Power Axe indicators
+                int statusY = phialY + 12;
+                if (state.isCbShieldCharged()) {
+                    int sec = state.getCbShieldChargeTicks() / 20;
+                    long pulse = System.currentTimeMillis() % 1000;
+                    int shieldColor = pulse < 500 ? 0xFFFFD740 : 0xFFFFAB00;
+                    guiGraphics.drawString(font, "Shield+ [" + sec + "s]", x, statusY, shieldColor, true);
+                    statusY += 11;
+                }
+                if (state.isCbSwordBoosted()) {
+                    int sec = state.getCbSwordBoostTicks() / 20;
+                    guiGraphics.drawString(font, "Sword+ [" + sec + "s]", x, statusY, 0xFF7C4DFF, true);
+                    statusY += 11;
+                }
+                if (state.isCbPowerAxe()) {
+                    int sec = state.getCbPowerAxeTicks() / 20;
+                    guiGraphics.drawString(font, "Power Axe [" + sec + "s]", x, statusY, 0xFFFF7043, true);
+                }
             }
             case "hammer" -> {
                 guiGraphics.drawString(font, "Charge Lv " + state.getHammerChargeLevel(), x, y - 1, 0xFFFFFF, true);
@@ -486,6 +538,41 @@ public final class WeaponHudOverlay {
                 drawGauge(guiGraphics, x, y, barWidth, barHeight, state.getBowCharge(), 0xFF8BC34A);
                 guiGraphics.drawString(font, "Coating: " + coatingLabel(state.getBowCoating()), x + barWidth + 6, y - 1, 0xFFFFFF, true);
             }
+            case "bowgun" -> {
+                // Gauge bar (special ability meter)
+                drawGauge(guiGraphics, x, y, barWidth, barHeight, state.getBowgunGauge() / 100.0f, 0xFF42A5F5);
+                // Mode label
+                String modeLabel = switch (state.getBowgunMode()) {
+                    case 1 -> "§aRAPID";
+                    case 2 -> "§eVERSATILE";
+                    case 3 -> "§cIGNITION";
+                    default -> "STANDARD";
+                };
+                guiGraphics.drawString(font, modeLabel, x + barWidth + 6, y - 1, 0xFFFFFF, true);
+                // Reload/recoil indicator
+                if (state.getBowgunReloadTimer() > 0) {
+                    guiGraphics.drawString(font, "§7Reloading...", x, y + 10, 0xFFFFFF, true);
+                } else if (state.getBowgunRecoilTimer() > 0) {
+                    guiGraphics.drawString(font, "§8Recoil", x, y + 10, 0xFFFFFF, true);
+                }
+                // Guard indicator
+                if (state.isBowgunGuarding()) {
+                    guiGraphics.drawString(font, "§6[GUARD]", x + 80, y + 10, 0xFFFFFF, true);
+                } else if (state.isBowgunAutoGuard()) {
+                    guiGraphics.drawString(font, "§7[A-GUARD]", x + 80, y + 10, 0xFFFFFF, true);
+                }
+                // Current ammo
+                String ammo = state.getBowgunCurrentAmmo();
+                if (!ammo.isEmpty()) {
+                    guiGraphics.drawString(font, "Ammo: " + ammo, x, y + 20, 0xFFCCCCCC, true);
+                }
+                // ── Mod Slot Icons Bar ──
+                // Show installed mods as colored category icons below the ammo info
+                ItemStack bowgunStack = player.getMainHandItem();
+                if (bowgunStack.getItem() instanceof BowgunItem) {
+                    renderBowgunModSlots(guiGraphics, font, bowgunStack, x, y + 32);
+                }
+            }
             default -> {
             }
         }
@@ -496,6 +583,98 @@ public final class WeaponHudOverlay {
         int fillWidth = Math.round(clamped * width);
         guiGraphics.fill(x, y, x + width, y + height, 0xAA000000);
         guiGraphics.fill(x, y, x + fillWidth, y + height, color);
+    }
+
+    /**
+     * Render the bowgun mod slot icons bar.
+     * Shows installed mods grouped by category, each with a distinct color and symbol.
+     * Empty slots are shown as dark outline squares.
+     */
+    @SuppressWarnings("null")
+    private static void renderBowgunModSlots(GuiGraphics guiGraphics, Font font, ItemStack bowgun, int x, int y) {
+        List<String> mods = BowgunItem.getInstalledMods(bowgun);
+
+        // Mod categories: icon symbol, slot color, and currently installed mod (if any)
+        // Order: Frame, Barrel, Stock, Magazine, Shield, Special/Ignition, Ammo Expansion
+        String[][] categories = {
+            {"F", "frame",    null},  // Frame
+            {"B", "barrel",   null},  // Barrel
+            {"S", "stock",    null},  // Stock
+            {"M", "magazine", null},  // Magazine
+            {"G", "shield",   null},  // Shield/Guard
+            {"\u2605", "special",  null},  // Special (★)
+            {"A", "ammo",     null},  // Ammo expansion
+        };
+
+        // Map installed mods to their category slots
+        for (String modId : mods) {
+            String cat = BowgunModResolver.getModCategory(modId);
+            for (String[] slot : categories) {
+                if (slot[1].equals(cat) && slot[2] == null) {
+                    slot[2] = modId;
+                    break;
+                }
+                // Ammo expansion mods are in "special" category but show in ammo slot
+                if ("ammo".equals(slot[1]) && slot[2] == null
+                        && ("elemental_barrel".equals(modId) || "status_loader".equals(modId) || "support_kit".equals(modId))) {
+                    slot[2] = modId;
+                    break;
+                }
+            }
+        }
+
+        int slotSize = 12;
+        int gap = 2;
+        int totalW = categories.length * (slotSize + gap) - gap;
+
+        // Background bar
+        guiGraphics.fill(x - 1, y - 1, x + totalW + 1, y + slotSize + 1, 0x88000000);
+
+        for (int i = 0; i < categories.length; i++) {
+            String icon = categories[i][0];
+            String catName = categories[i][1];
+            String installedMod = categories[i][2];
+            int slotX = x + i * (slotSize + gap);
+
+            // Category color
+            int slotColor = getCategoryColor(catName, installedMod != null);
+            int borderColor = installedMod != null ? slotColor : 0xFF555555;
+
+            // Draw slot border
+            guiGraphics.fill(slotX, y, slotX + slotSize, y + slotSize, borderColor);
+            // Inner fill
+            int innerColor = installedMod != null ? (slotColor & 0x00FFFFFF) | 0x44000000 : 0xFF1A1A1A;
+            guiGraphics.fill(slotX + 1, y + 1, slotX + slotSize - 1, y + slotSize - 1, innerColor);
+
+            // Icon/letter
+            int textColor = installedMod != null ? 0xFFFFFFFF : 0xFF666666;
+            guiGraphics.drawString(font, icon, slotX + 3, y + 2, textColor, true);
+        }
+
+        // Show installed mod name on hover-like display (condensed label below)
+        // Count total mods installed
+        int installed = (int) java.util.Arrays.stream(categories).filter(c -> c[2] != null).count();
+        if (installed > 0) {
+            guiGraphics.drawString(font, installed + "/" + categories.length + " mods",
+                    x + totalW + 4, y + 2, 0xFF999999, true);
+        } else {
+            guiGraphics.drawString(font, "No mods", x + totalW + 4, y + 2, 0xFF666666, true);
+        }
+    }
+
+    /** Returns a distinct HUD color for each mod category. */
+    private static int getCategoryColor(String category, boolean active) {
+        if (!active) return 0xFF555555;
+        return switch (category) {
+            case "frame"    -> 0xFF42A5F5; // Blue - structural
+            case "barrel"   -> 0xFFEF5350; // Red - offensive
+            case "stock"    -> 0xFF66BB6A; // Green - stability
+            case "magazine" -> 0xFFFFCA28; // Yellow - capacity
+            case "shield"   -> 0xFF78909C; // Blue-grey - defensive
+            case "special"  -> 0xFFAB47BC; // Purple - special abilities
+            case "ammo"     -> 0xFFFF7043; // Orange - ammo expansion
+            default         -> 0xFFBDBDBD; // Grey
+        };
     }
 
     private static void renderSpiritBlade(GuiGraphics guiGraphics, int x, int y, int width, int height, int level, float decayRatio) {
@@ -1114,6 +1293,41 @@ public final class WeaponHudOverlay {
                     case "full_release": return "Full Release";
                     case "elemental_discharge": return "Element Discharge";
                     case "basic_attack": return state != null && state.isSwitchAxeSwordMode() ? "Sword Slash" : "Axe Slash";
+                    default: return null;
+                }
+            }
+            case "charge_blade": {
+                switch (key) {
+                    // Sword Mode combo
+                    case "cb_sword_weak_slash": return "Sword: Weak Slash";
+                    case "cb_sword_return_stroke": return "Sword: Return Stroke";
+                    case "cb_sword_roundslash": return "Sword: Roundslash";
+                    // Axe Mode combo
+                    case "cb_axe_rising_slash": return "Axe: Rising Slash";
+                    case "cb_axe_overhead_slash": return "Axe: Overhead Slash";
+                    // Shield Thrust
+                    case "cb_shield_thrust": return "Sword: Shield Thrust";
+                    // Element Discharge chain
+                    case "cb_element_discharge_1": return "Axe: Element Discharge I";
+                    case "cb_element_discharge_2": return "Axe: Element Discharge II";
+                    case "cb_aed": return "Axe: Amped Element Discharge (AED)";
+                    case "cb_saed": return "Axe: Super Amped Element Discharge (SAED)";
+                    // Morph Slashes
+                    case "cb_morph_to_axe": return "Sword: Morph Slash → Axe";
+                    case "cb_morph_to_sword": return "Axe: Morph Slash → Sword";
+                    // Elemental Roundslash (Shield Charge)
+                    case "cb_elemental_roundslash": return "Elemental Roundslash";
+                    // Phial charging
+                    case "cb_charge_phials": return "Charge Phials";
+                    case "cb_charge_fail": return "Charge Phials (Insufficient)";
+                    // Guard Point
+                    case "cb_guard_point_success": return "Guard Point!";
+                    // Legacy / generic keys
+                    case "morph": return "Morph";
+                    case "charge_phials": return "Charge Phials";
+                    case "elemental_discharge": return "Element Discharge";
+                    case "super_discharge": return "Super Amped Element Discharge";
+                    case "basic_attack": return state != null && state.isChargeBladeSwordMode() ? "Sword: Weak Slash" : "Axe: Rising Slash";
                     default: return null;
                 }
             }

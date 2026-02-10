@@ -19,8 +19,10 @@ import org.example.common.network.ModNetwork;
 import org.example.common.network.packet.FocusModeC2SPacket;
 import org.example.common.network.packet.KinsectLaunchC2SPacket;
 import org.example.common.network.packet.WeaponActionC2SPacket;
+import org.example.common.network.packet.AmmoSwitchC2SPacket;
 import org.example.common.data.WeaponDataResolver;
 import org.example.common.util.CapabilityUtil;
+import org.example.client.ui.AmmoSelectOverlay;
 import org.example.item.WeaponIdProvider;
 import net.minecraft.world.entity.player.Player;
 import org.apache.logging.log4j.LogManager;
@@ -50,6 +52,8 @@ public final class ClientForgeEvents {
     private static boolean glRightDown;
     private static boolean igRmbDown;
     private static boolean igChargeSent;
+    private static boolean bowgunRmbDown;
+    private static boolean bowgunRmbAimSent;
 
     @SubscribeEvent
     public static void onComputeFov(net.minecraftforge.client.event.ComputeFovModifierEvent event) {
@@ -85,12 +89,26 @@ public final class ClientForgeEvents {
             ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.DODGE, true));
         }
 
+        if (ClientKeybinds.BOWGUN_RELOAD.consumeClick() && !isAnimating) {
+            if ("bowgun".equals(currentWeaponId)) {
+                // Bowgun reload (rebindable)
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.BOWGUN_RELOAD, true));
+            }
+        }
+
         if (ClientKeybinds.SHEATHE.consumeClick() && !isAnimating) {
-            ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.SHEATHE, true));
+            if (!"bowgun".equals(currentWeaponId)) {
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.SHEATHE, true));
+            }
         }
 
         if (ClientKeybinds.SPECIAL_ACTION.consumeClick()) {
-            if (!"gunlance".equals(currentWeaponId)) {
+            if ("bowgun".equals(currentWeaponId)) {
+                // F key -> Special ammo / Focus blast for bowgun
+                if (!isAnimating) {
+                    ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.SPECIAL, true));
+                }
+            } else if (!"gunlance".equals(currentWeaponId)) {
                 if (!isAnimating) {
                     ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.SPECIAL, true));
                 }
@@ -108,12 +126,18 @@ public final class ClientForgeEvents {
         boolean skipKeyboardWeaponActions = "tonfa".equals(currentWeaponId)
                 || "magnet_spike".equals(currentWeaponId)
                 || "insect_glaive".equals(currentWeaponId)
-                || "gunlance".equals(currentWeaponId); // Skip default WEAPON handler for GL to avoid conflicts
+                || "gunlance".equals(currentWeaponId)
+                || "bowgun".equals(currentWeaponId); // Bowgun has custom key dispatch
 
         boolean weaponClick = ClientKeybinds.WEAPON_ACTION.consumeClick();
         if (weaponClick && !skipKeyboardWeaponActions && !isAnimating) {
-            ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON, true));
-            applyLongSwordThrustHint(Minecraft.getInstance());
+            if ("charge_blade".equals(currentWeaponId)) {
+                // Keyboard weapon action should trigger skills, not basic attacks, for Charge Blade
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON_ALT, true));
+            } else {
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON, true));
+                applyLongSwordThrustHint(Minecraft.getInstance());
+            }
         }
 
         if (weaponClick && "gunlance".equals(currentWeaponId) && !isAnimating) {
@@ -122,6 +146,11 @@ public final class ClientForgeEvents {
              // Currently WEAPON_ACTION defaults to 'X'. 
              // If the user presses 'X', it sends WEAPON packet.
              ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON, true));
+        }
+
+        // Bowgun X key -> WEAPON for mode switch / chaser shot (handled in BowgunHandler.handleWeaponAction)
+        if (weaponClick && "bowgun".equals(currentWeaponId) && !isAnimating) {
+            ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON, true));
         }
 
         boolean altClick = ClientKeybinds.WEAPON_ACTION_ALT.consumeClick();
@@ -155,6 +184,20 @@ public final class ClientForgeEvents {
             ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON_ALT, true));
         }
 
+        // Bowgun C key -> WEAPON_ALT for melee bash
+        if (altClick && "bowgun".equals(currentWeaponId) && !isAnimating) {
+            ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON_ALT, true));
+        }
+
+        // Bowgun Tab key -> Toggle ammo selection overlay
+        if (ClientKeybinds.AMMO_SELECT.consumeClick() && "bowgun".equals(currentWeaponId)) {
+            AmmoSelectOverlay.setVisible(!AmmoSelectOverlay.isVisible());
+        }
+        // Close ammo select overlay when switching away from bowgun
+        if (!"bowgun".equals(currentWeaponId) && AmmoSelectOverlay.isVisible()) {
+            AmmoSelectOverlay.setVisible(false);
+        }
+
         if (ClientKeybinds.KINSECT_LAUNCH.consumeClick() && !isAnimating) {
             var hit = Minecraft.getInstance().hitResult;
             int targetId = -1;
@@ -175,10 +218,15 @@ public final class ClientForgeEvents {
         boolean magnetChargeHold = "magnet_spike".equals(currentWeaponId)
                 && weaponState != null
                 && weaponState.isMagnetSpikeImpactMode();
-        boolean nowAttackDown = ("longsword".equals(currentWeaponId) || magnetChargeHold)
+        boolean nowAttackDown = ("longsword".equals(currentWeaponId)
+                || "charge_blade".equals(currentWeaponId)
+                || magnetChargeHold)
             ? Minecraft.getInstance().mouseHandler.isLeftPressed()
             : Minecraft.getInstance().options.keyAttack.isDown();
         if (nowAttackDown && !attackDown) {
+            if ("charge_blade".equals(currentWeaponId)) {
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON, true));
+            }
             if (!isAnimating) {
                 if (!"longsword".equals(currentWeaponId)) {
                     applyLongSwordSpiritClickHint(Minecraft.getInstance());
@@ -197,8 +245,10 @@ public final class ClientForgeEvents {
             handleGunlanceMouseInput(Minecraft.getInstance());
             handleInsectGlaiveRmbInput(Minecraft.getInstance());
         }
+        // Bowgun RMB release tracking runs even during animation so we properly toggle ADS off
+        handleBowgunInput(Minecraft.getInstance());
 
-        if ("longsword".equals(currentWeaponId) && nowAttackDown) {
+        if (("longsword".equals(currentWeaponId) || "charge_blade".equals(currentWeaponId)) && nowAttackDown) {
             Minecraft.getInstance().options.keyAttack.setDown(false);
         }
         if (magnetChargeHold && nowAttackDown && (chargeSent || (weaponState != null && weaponState.isChargingAttack()))) {
@@ -206,7 +256,9 @@ public final class ClientForgeEvents {
         }
 
         if (nowAttackDown && isChargeWeapon(Minecraft.getInstance().player)) {
-            if ("longsword".equals(currentWeaponId)) {
+            if ("charge_blade".equals(currentWeaponId)) {
+                // Charge Blade uses immediate LMB combo, no hold-to-charge on LMB
+            } else if ("longsword".equals(currentWeaponId)) {
                 attackHoldTicks++;
                 if (!chargeSent) {
                     chargeSent = true;
@@ -257,6 +309,13 @@ public final class ClientForgeEvents {
                         magnetChargeStage = stage;
                     }
                 }
+            } else if ("bowgun".equals(currentWeaponId)) {
+                // Bowgun: Fire immediately on LMB press, CHARGE(false) on release handles sustained fire stop
+                if (!chargeSent) {
+                    chargeSent = true;
+                    ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.CHARGE, true));
+                }
+                attackHoldTicks++;
             } else if (chargeSent || !isAnimating) {
                 attackHoldTicks++;
                 int holdTicks = "gunlance".equals(currentWeaponId) ? GUNLANCE_CHARGE_HOLD_TICKS : CHARGE_HOLD_TICKS;
@@ -277,10 +336,12 @@ public final class ClientForgeEvents {
             if (chargeSent) {
                 ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.CHARGE, false));
                 chargeSent = false;
-            } else if (attackHoldTicks > 0) {
-                 if (!"insect_glaive".equals(currentWeaponId)
-                         && !"longsword".equals(currentWeaponId)
-                         && !isAnimating) {
+                } else if (attackHoldTicks > 0) {
+                      if (!"insect_glaive".equals(currentWeaponId)
+                                 && !"longsword".equals(currentWeaponId)
+                                 && !"charge_blade".equals(currentWeaponId)
+                                 && !"bowgun".equals(currentWeaponId)
+                                 && !isAnimating) {
                       if ("tonfa".equals(currentWeaponId)) {
                          LOGGER.info("Tonfa LMB release -> send WEAPON (isAnimating={}, holdTicks={})", isAnimating, attackHoldTicks);
                       }
@@ -362,6 +423,16 @@ public final class ClientForgeEvents {
         
         if (mc.player.getMainHandItem().getItem() instanceof WeaponIdProvider weaponIdProvider) {
             String weaponId = weaponIdProvider.getWeaponId();
+            if ("bowgun".equals(weaponId)) {
+                // RMB press -> ADS only if bowgun aim is bound to the use key
+                if (ClientKeybinds.BOWGUN_AIM.getKey().equals(mc.options.keyUse.getKey())) {
+                    ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.BOWGUN_AIM, true));
+                    bowgunRmbAimSent = true;
+                    bowgunRmbDown = true;
+                    event.setCanceled(true);
+                    return;
+                }
+            }
             if ("hunting_horn".equals(weaponId)) {
                 event.setCanceled(true);
                 return;
@@ -413,6 +484,12 @@ public final class ClientForgeEvents {
                 event.setCanceled(true);
                 return;
             }
+            if ("charge_blade".equals(weaponId)) {
+                // RMB -> WEAPON_ALT for Charge Blade (Shield Thrust / Discharge chain)
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON_ALT, true));
+                event.setCanceled(true);
+                return;
+            }
         }
         if (!(mc.player.getMainHandItem().getItem() instanceof org.example.item.GeoWeaponItem)) {
             return;
@@ -446,7 +523,7 @@ public final class ClientForgeEvents {
             return;
         }
 
-        boolean rmbDown = mc.options.keyUse.isDown();
+        boolean rmbDown = ClientKeybinds.BOWGUN_AIM.isDown();
         boolean lmbDown = mc.mouseHandler.isLeftPressed();
 
         // LMB+RMB simultaneous: instant Descending Slash (shortcut, no charge required)
@@ -477,6 +554,56 @@ public final class ClientForgeEvents {
         }
 
         igRmbDown = rmbDown;
+    }
+
+    /**
+     * Track bowgun RMB hold/release for ADS (Aim Down Sights) toggling.
+     * onUseKey sends BOWGUN_AIM(true) when RMB is pressed.
+     * This method detects RMB release and sends BOWGUN_AIM(false) to stop aiming.
+     * Also suppresses BetterCombat and vanilla item-use while RMB is held for bowgun.
+     */
+    @SuppressWarnings("null")
+    private static void handleBowgunInput(Minecraft mc) {
+        if (mc == null || mc.player == null) {
+            bowgunRmbDown = false;
+            bowgunRmbAimSent = false;
+            return;
+        }
+        if (!(mc.player.getMainHandItem().getItem() instanceof WeaponIdProvider weaponIdProvider)
+                || !"bowgun".equals(weaponIdProvider.getWeaponId())) {
+            // Switched away from bowgun — release aim if it was active
+            if (bowgunRmbAimSent) {
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.BOWGUN_AIM, false));
+                bowgunRmbAimSent = false;
+            }
+            bowgunRmbDown = false;
+            return;
+        }
+
+        boolean rmbDown = mc.options.keyUse.isDown();
+
+        // Detect RMB press (not handled by onUseKey when already aiming/re-pressing)
+        if (rmbDown && !bowgunRmbDown) {
+            if (!bowgunRmbAimSent) {
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.BOWGUN_AIM, true));
+                bowgunRmbAimSent = true;
+            }
+        }
+
+        // Suppress vanilla item use while aim key held when it's bound to use
+        if (rmbDown && bowgunRmbDown && ClientKeybinds.BOWGUN_AIM.getKey().equals(mc.options.keyUse.getKey())) {
+            mc.options.keyUse.setDown(false);
+        }
+
+        // Detect release: was down, now released → stop aiming
+        if (bowgunRmbDown && !rmbDown) {
+            if (bowgunRmbAimSent) {
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.BOWGUN_AIM, false));
+                bowgunRmbAimSent = false;
+            }
+        }
+
+        bowgunRmbDown = rmbDown;
     }
 
 
@@ -587,7 +714,8 @@ public final class ClientForgeEvents {
                 || "tonfa".equals(weaponId)
                 || "magnet_spike".equals(weaponId)
                 || "accel_axe".equals(weaponId)
-                || "switch_axe".equals(weaponId);
+                || "switch_axe".equals(weaponId)
+                || "bowgun".equals(weaponId);
     }
 
     private static int resolveLongSwordChargeStage(int chargeTicks, int maxCharge) {
@@ -736,6 +864,28 @@ public final class ClientForgeEvents {
             input.forwardImpulse = 0.0f;
             input.left = false;
             input.right = false;
+        }
+    }
+
+    /**
+     * Handle mouse scroll for ammo selection when overlay is visible.
+     * Scrolling cycles through ammo types and sends packets to the server.
+     */
+    @SubscribeEvent
+    @SuppressWarnings("null")
+    public static void onMouseScroll(InputEvent.MouseScrollingEvent event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+        if (!AmmoSelectOverlay.isVisible()) return;
+        if (!(mc.player.getMainHandItem().getItem() instanceof WeaponIdProvider wp)
+                || !"bowgun".equals(wp.getWeaponId())) return;
+
+        double delta = event.getScrollDelta();
+        if (delta != 0) {
+            boolean forward = delta > 0;
+            AmmoSelectOverlay.scroll(forward ? -1 : 1); // scroll list direction
+            ModNetwork.CHANNEL.sendToServer(new AmmoSwitchC2SPacket(forward));
+            event.setCanceled(true); // prevent hotbar scroll
         }
     }
 }

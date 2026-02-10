@@ -12,5 +12,7 @@ public enum WeaponActionType {
     CHARGE,
     KINSECT_LAUNCH,
     KINSECT_RECALL,
-    DOUBLE_JUMP
+    DOUBLE_JUMP,
+    BOWGUN_AIM,
+    BOWGUN_RELOAD
 }

@@ -83,6 +83,19 @@ public final class CombatReferee {
                 }
             }
 
+            // Charge Blade Guard Point
+            if (player.getMainHandItem().getItem() instanceof org.example.item.WeaponIdProvider cbWeaponId
+                    && "charge_blade".equals(cbWeaponId.getWeaponId())) {
+                PlayerWeaponState cbState = CapabilityUtil.getPlayerWeaponState(player);
+                PlayerCombatState cbCombatState = CapabilityUtil.getPlayerCombatState(player);
+                if (cbState != null && cbCombatState != null && cbState.getCbGuardPointTicks() > 0) {
+                    if (org.example.common.combat.weapon.ChargeBladeHandler.tryConsumeGuardPoint(player, cbCombatState, cbState)) {
+                        event.setCanceled(true);
+                        return;
+                    }
+                }
+            }
+
             PlayerWeaponState weaponState = CapabilityUtil.getPlayerWeaponState(player);
             if (weaponState != null && weaponState.getHornDefenseLargeTicks() > 0) {
                 event.setAmount(event.getAmount() * 0.8f);

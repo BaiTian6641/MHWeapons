@@ -13,6 +13,12 @@ public final class MHWeaponsConfig {
     public static final ForgeConfigSpec.EnumValue<org.example.common.combat.MHDamageType> KINSECT_DAMAGE_TYPE;
     public static final ForgeConfigSpec.ConfigValue<String> KINSECT_ELEMENT;
 
+    // Debug
+    public static final ForgeConfigSpec.BooleanValue LOG_COMBAT_EVENTS;
+    public static final ForgeConfigSpec.BooleanValue LOG_INPUT_EVENTS;
+    public static final ForgeConfigSpec.BooleanValue LOG_STATE_CHANGES;
+    public static final ForgeConfigSpec.BooleanValue LOG_WEAPON_ACTIONS;
+
     static {
         ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
         builder.push("hud");
@@ -43,6 +49,22 @@ public final class MHWeaponsConfig {
             .comment("Kinsect element (placeholder)")
             .define("element", "none");
         commonBuilder.pop();
+
+        commonBuilder.push("debug");
+        LOG_COMBAT_EVENTS = commonBuilder
+                .comment("Log specific combat events (damage, guards, etc.)")
+                .define("logCombatEvents", false);
+        LOG_INPUT_EVENTS = commonBuilder
+                .comment("Log input events (key presses, mouse clicks)")
+                .define("logInputEvents", false);
+        LOG_STATE_CHANGES = commonBuilder
+                .comment("Log player state changes (weapon state, stamina)")
+                .define("logStateChanges", false);
+        LOG_WEAPON_ACTIONS = commonBuilder
+                .comment("Log specific weapon actions (combos, special moves)")
+                .define("logWeaponActions", false);
+        commonBuilder.pop();
+
         COMMON_SPEC = commonBuilder.build();
     }
 

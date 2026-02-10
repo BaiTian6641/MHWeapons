@@ -78,6 +78,9 @@ dependencies {
     // Curios API
     implementation fg.deobf("top.theillusivec4.curios:curios-forge:5.14.1+1.20.1")
 
+    // Moonlight Library (dynamic textures, runtime resource packs, texture manipulation)
+    implementation fg.deobf('maven.modrinth:moonlight:1.20-2.16.27-forge')
+
     // If you want to also include bendy-lib for richer animations (optional):
     // runtimeOnly fg.deobf('io.github.kosmx.bendy-lib:bendy-lib-forge:<VERSION>')
 }  

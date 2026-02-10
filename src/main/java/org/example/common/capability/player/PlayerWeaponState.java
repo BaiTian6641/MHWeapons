@@ -82,6 +82,16 @@ public final class PlayerWeaponState {
     private boolean chargeBladeSwordMode;
     private int chargeBladePhials;
     private int chargeBladeCharge;
+    private boolean cbShieldCharged;
+    private int cbShieldChargeTicks;
+    private boolean cbSwordBoosted;
+    private int cbSwordBoostTicks;
+    private boolean cbPowerAxe;
+    private int cbPowerAxeTicks;
+    private int cbComboIndex;
+    private int cbComboTick;
+    private int cbGuardPointTicks;
+    private int cbDischargeStage; // 0=none, 1=ED1, 2=ED2, 3=AED/SAED
 
     private boolean insectRed;
     private boolean insectWhite;
@@ -125,6 +135,23 @@ public final class PlayerWeaponState {
 
     private float bowCharge;
     private int bowCoating;
+
+    // ── Bowgun fields ──
+    private int bowgunMode;               // 0=Standard, 1=Rapid, 2=Versatile, 3=Ignition
+    private float bowgunGauge;            // 0-100 gauge for special abilities
+    private int bowgunRecoilTimer;        // ticks remaining in recoil recovery
+    private int bowgunReloadTimer;        // ticks remaining in reload animation
+    private String bowgunCurrentAmmo = "";// current ammo type id
+    private int bowgunLastAction;         // last action enum (0=none, 1=fire, 2=rapid, etc.)
+    private int bowgunModeSwitchTicks;    // animation timer for mode switch
+    private boolean bowgunAiming;         // true while ADS/focus mode
+    private boolean bowgunFiring;         // true during sustained fire (Wyvernheart)
+    private int bowgunSustainedHits;      // sustained fire hit counter for damage ramp
+    private boolean bowgunGuarding;       // true while actively blocking
+    private int bowgunGuardTicks;         // ticks since guard started (for perfect guard)
+    private boolean bowgunAutoGuard;      // true if auto-guard is active (heavy builds)
+    private int bowgunSpecialAmmoTimer;   // cooldown for special ammo (wyvernblast/adhesive)
+    private int bowgunWeight;             // cached computed weight (synced)
 
     private boolean chargingAttack;
     private int chargeAttackTicks;
@@ -966,6 +993,36 @@ public final class PlayerWeaponState {
         }
     }
 
+    public boolean isCbShieldCharged() { return cbShieldCharged; }
+    public void setCbShieldCharged(boolean v) { if (this.cbShieldCharged != v) { this.cbShieldCharged = v; markDirty(); } }
+
+    public int getCbShieldChargeTicks() { return cbShieldChargeTicks; }
+    public void setCbShieldChargeTicks(int v) { if (this.cbShieldChargeTicks != v) { this.cbShieldChargeTicks = v; markDirty(); } }
+
+    public boolean isCbSwordBoosted() { return cbSwordBoosted; }
+    public void setCbSwordBoosted(boolean v) { if (this.cbSwordBoosted != v) { this.cbSwordBoosted = v; markDirty(); } }
+
+    public int getCbSwordBoostTicks() { return cbSwordBoostTicks; }
+    public void setCbSwordBoostTicks(int v) { if (this.cbSwordBoostTicks != v) { this.cbSwordBoostTicks = v; markDirty(); } }
+
+    public boolean isCbPowerAxe() { return cbPowerAxe; }
+    public void setCbPowerAxe(boolean v) { if (this.cbPowerAxe != v) { this.cbPowerAxe = v; markDirty(); } }
+
+    public int getCbPowerAxeTicks() { return cbPowerAxeTicks; }
+    public void setCbPowerAxeTicks(int v) { if (this.cbPowerAxeTicks != v) { this.cbPowerAxeTicks = v; markDirty(); } }
+
+    public int getCbComboIndex() { return cbComboIndex; }
+    public void setCbComboIndex(int v) { if (this.cbComboIndex != v) { this.cbComboIndex = v; markDirty(); } }
+
+    public int getCbComboTick() { return cbComboTick; }
+    public void setCbComboTick(int v) { if (this.cbComboTick != v) { this.cbComboTick = v; markDirty(); } }
+
+    public int getCbGuardPointTicks() { return cbGuardPointTicks; }
+    public void setCbGuardPointTicks(int v) { if (this.cbGuardPointTicks != v) { this.cbGuardPointTicks = v; markDirty(); } }
+
+    public int getCbDischargeStage() { return cbDischargeStage; }
+    public void setCbDischargeStage(int v) { if (this.cbDischargeStage != v) { this.cbDischargeStage = v; markDirty(); } }
+
     public boolean isInsectRed() {
         return insectRed;
     }
@@ -1436,6 +1493,16 @@ public final class PlayerWeaponState {
         chargeBladeSwordMode = other.chargeBladeSwordMode;
         chargeBladePhials = other.chargeBladePhials;
         chargeBladeCharge = other.chargeBladeCharge;
+        cbShieldCharged = other.cbShieldCharged;
+        cbShieldChargeTicks = other.cbShieldChargeTicks;
+        cbSwordBoosted = other.cbSwordBoosted;
+        cbSwordBoostTicks = other.cbSwordBoostTicks;
+        cbPowerAxe = other.cbPowerAxe;
+        cbPowerAxeTicks = other.cbPowerAxeTicks;
+        cbComboIndex = other.cbComboIndex;
+        cbComboTick = other.cbComboTick;
+        cbGuardPointTicks = other.cbGuardPointTicks;
+        cbDischargeStage = other.cbDischargeStage;
         insectRed = other.insectRed;
         insectWhite = other.insectWhite;
         insectOrange = other.insectOrange;
@@ -1568,6 +1635,16 @@ public final class PlayerWeaponState {
         tag.putBoolean("chargeBladeSwordMode", chargeBladeSwordMode);
         tag.putInt("chargeBladePhials", chargeBladePhials);
         tag.putInt("chargeBladeCharge", chargeBladeCharge);
+        tag.putBoolean("cbShieldCharged", cbShieldCharged);
+        tag.putInt("cbShieldChargeTicks", cbShieldChargeTicks);
+        tag.putBoolean("cbSwordBoosted", cbSwordBoosted);
+        tag.putInt("cbSwordBoostTicks", cbSwordBoostTicks);
+        tag.putBoolean("cbPowerAxe", cbPowerAxe);
+        tag.putInt("cbPowerAxeTicks", cbPowerAxeTicks);
+        tag.putInt("cbComboIndex", cbComboIndex);
+        tag.putInt("cbComboTick", cbComboTick);
+        tag.putInt("cbGuardPointTicks", cbGuardPointTicks);
+        tag.putInt("cbDischargeStage", cbDischargeStage);
         tag.putBoolean("insectRed", insectRed);
         tag.putBoolean("insectWhite", insectWhite);
         tag.putBoolean("insectOrange", insectOrange);
@@ -1605,6 +1682,21 @@ public final class PlayerWeaponState {
         tag.putInt("accelParryTicks", accelParryTicks);
         tag.putFloat("bowCharge", bowCharge);
         tag.putInt("bowCoating", bowCoating);
+        tag.putInt("bowgunMode", bowgunMode);
+        tag.putFloat("bowgunGauge", bowgunGauge);
+        tag.putInt("bowgunRecoilTimer", bowgunRecoilTimer);
+        tag.putInt("bowgunReloadTimer", bowgunReloadTimer);
+        tag.putString("bowgunCurrentAmmo", bowgunCurrentAmmo);
+        tag.putInt("bowgunLastAction", bowgunLastAction);
+        tag.putInt("bowgunModeSwitchTicks", bowgunModeSwitchTicks);
+        tag.putBoolean("bowgunAiming", bowgunAiming);
+        tag.putBoolean("bowgunFiring", bowgunFiring);
+        tag.putInt("bowgunSustainedHits", bowgunSustainedHits);
+        tag.putBoolean("bowgunGuarding", bowgunGuarding);
+        tag.putInt("bowgunGuardTicks", bowgunGuardTicks);
+        tag.putBoolean("bowgunAutoGuard", bowgunAutoGuard);
+        tag.putInt("bowgunSpecialAmmoTimer", bowgunSpecialAmmoTimer);
+        tag.putInt("bowgunWeight", bowgunWeight);
         tag.putBoolean("chargingAttack", chargingAttack);
         tag.putInt("chargeAttackTicks", chargeAttackTicks);
         tag.putFloat("stamina", stamina);
@@ -1699,6 +1791,16 @@ public final class PlayerWeaponState {
         chargeBladeSwordMode = tag.getBoolean("chargeBladeSwordMode");
         chargeBladePhials = tag.getInt("chargeBladePhials");
         chargeBladeCharge = tag.getInt("chargeBladeCharge");
+        cbShieldCharged = tag.getBoolean("cbShieldCharged");
+        cbShieldChargeTicks = tag.contains("cbShieldChargeTicks") ? tag.getInt("cbShieldChargeTicks") : 0;
+        cbSwordBoosted = tag.getBoolean("cbSwordBoosted");
+        cbSwordBoostTicks = tag.contains("cbSwordBoostTicks") ? tag.getInt("cbSwordBoostTicks") : 0;
+        cbPowerAxe = tag.getBoolean("cbPowerAxe");
+        cbPowerAxeTicks = tag.contains("cbPowerAxeTicks") ? tag.getInt("cbPowerAxeTicks") : 0;
+        cbComboIndex = tag.contains("cbComboIndex") ? tag.getInt("cbComboIndex") : 0;
+        cbComboTick = tag.contains("cbComboTick") ? tag.getInt("cbComboTick") : 0;
+        cbGuardPointTicks = tag.contains("cbGuardPointTicks") ? tag.getInt("cbGuardPointTicks") : 0;
+        cbDischargeStage = tag.contains("cbDischargeStage") ? tag.getInt("cbDischargeStage") : 0;
         insectRed = tag.getBoolean("insectRed");
         insectWhite = tag.getBoolean("insectWhite");
         insectOrange = tag.getBoolean("insectOrange");
@@ -1736,6 +1838,21 @@ public final class PlayerWeaponState {
         accelParryTicks = tag.contains("accelParryTicks", Tag.TAG_INT) ? tag.getInt("accelParryTicks") : 0;
         bowCharge = tag.getFloat("bowCharge");
         bowCoating = tag.getInt("bowCoating");
+        bowgunMode = tag.contains("bowgunMode", Tag.TAG_INT) ? tag.getInt("bowgunMode") : 0;
+        bowgunGauge = tag.contains("bowgunGauge", Tag.TAG_FLOAT) ? tag.getFloat("bowgunGauge") : 0.0f;
+        bowgunRecoilTimer = tag.contains("bowgunRecoilTimer", Tag.TAG_INT) ? tag.getInt("bowgunRecoilTimer") : 0;
+        bowgunReloadTimer = tag.contains("bowgunReloadTimer", Tag.TAG_INT) ? tag.getInt("bowgunReloadTimer") : 0;
+        bowgunCurrentAmmo = tag.contains("bowgunCurrentAmmo") ? tag.getString("bowgunCurrentAmmo") : "";
+        bowgunLastAction = tag.contains("bowgunLastAction", Tag.TAG_INT) ? tag.getInt("bowgunLastAction") : 0;
+        bowgunModeSwitchTicks = tag.contains("bowgunModeSwitchTicks", Tag.TAG_INT) ? tag.getInt("bowgunModeSwitchTicks") : 0;
+        bowgunAiming = tag.getBoolean("bowgunAiming");
+        bowgunFiring = tag.getBoolean("bowgunFiring");
+        bowgunSustainedHits = tag.contains("bowgunSustainedHits", Tag.TAG_INT) ? tag.getInt("bowgunSustainedHits") : 0;
+        bowgunGuarding = tag.getBoolean("bowgunGuarding");
+        bowgunGuardTicks = tag.contains("bowgunGuardTicks", Tag.TAG_INT) ? tag.getInt("bowgunGuardTicks") : 0;
+        bowgunAutoGuard = tag.getBoolean("bowgunAutoGuard");
+        bowgunSpecialAmmoTimer = tag.contains("bowgunSpecialAmmoTimer", Tag.TAG_INT) ? tag.getInt("bowgunSpecialAmmoTimer") : 0;
+        bowgunWeight = tag.contains("bowgunWeight", Tag.TAG_INT) ? tag.getInt("bowgunWeight") : 0;
         chargingAttack = tag.getBoolean("chargingAttack");
         chargeAttackTicks = tag.getInt("chargeAttackTicks");
         float loadedMaxStamina = tag.contains("maxStamina", Tag.TAG_FLOAT) ? tag.getFloat("maxStamina") : 100.0f;
@@ -2101,4 +2218,59 @@ public final class PlayerWeaponState {
             markDirty();
         }
     }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  Bowgun getters/setters
+    // ══════════════════════════════════════════════════════════════════
+
+    public int getBowgunMode() { return bowgunMode; }
+    public void setBowgunMode(int mode) { if (this.bowgunMode != mode) { this.bowgunMode = mode; markDirty(); } }
+
+    public float getBowgunGauge() { return bowgunGauge; }
+    public void setBowgunGauge(float gauge) {
+        float clamped = Math.max(0.0f, Math.min(100.0f, gauge));
+        if (this.bowgunGauge != clamped) { this.bowgunGauge = clamped; markDirty(); }
+    }
+
+    public int getBowgunRecoilTimer() { return bowgunRecoilTimer; }
+    public void setBowgunRecoilTimer(int t) { if (this.bowgunRecoilTimer != t) { this.bowgunRecoilTimer = t; markDirty(); } }
+
+    public int getBowgunReloadTimer() { return bowgunReloadTimer; }
+    public void setBowgunReloadTimer(int t) { if (this.bowgunReloadTimer != t) { this.bowgunReloadTimer = t; markDirty(); } }
+
+    public String getBowgunCurrentAmmo() { return bowgunCurrentAmmo; }
+    public void setBowgunCurrentAmmo(String ammo) {
+        if (ammo == null) ammo = "";
+        if (!this.bowgunCurrentAmmo.equals(ammo)) { this.bowgunCurrentAmmo = ammo; markDirty(); }
+    }
+
+    public int getBowgunLastAction() { return bowgunLastAction; }
+    public void setBowgunLastAction(int a) { if (this.bowgunLastAction != a) { this.bowgunLastAction = a; markDirty(); } }
+
+    public int getBowgunModeSwitchTicks() { return bowgunModeSwitchTicks; }
+    public void setBowgunModeSwitchTicks(int t) { if (this.bowgunModeSwitchTicks != t) { this.bowgunModeSwitchTicks = t; markDirty(); } }
+
+    public boolean isBowgunAiming() { return bowgunAiming; }
+    public void setBowgunAiming(boolean v) { if (this.bowgunAiming != v) { this.bowgunAiming = v; markDirty(); } }
+
+    public boolean isBowgunFiring() { return bowgunFiring; }
+    public void setBowgunFiring(boolean v) { if (this.bowgunFiring != v) { this.bowgunFiring = v; markDirty(); } }
+
+    public int getBowgunSustainedHits() { return bowgunSustainedHits; }
+    public void setBowgunSustainedHits(int h) { if (this.bowgunSustainedHits != h) { this.bowgunSustainedHits = h; markDirty(); } }
+
+    public boolean isBowgunGuarding() { return bowgunGuarding; }
+    public void setBowgunGuarding(boolean v) { if (this.bowgunGuarding != v) { this.bowgunGuarding = v; markDirty(); } }
+
+    public int getBowgunGuardTicks() { return bowgunGuardTicks; }
+    public void setBowgunGuardTicks(int t) { if (this.bowgunGuardTicks != t) { this.bowgunGuardTicks = t; markDirty(); } }
+
+    public boolean isBowgunAutoGuard() { return bowgunAutoGuard; }
+    public void setBowgunAutoGuard(boolean v) { if (this.bowgunAutoGuard != v) { this.bowgunAutoGuard = v; markDirty(); } }
+
+    public int getBowgunSpecialAmmoTimer() { return bowgunSpecialAmmoTimer; }
+    public void setBowgunSpecialAmmoTimer(int t) { if (this.bowgunSpecialAmmoTimer != t) { this.bowgunSpecialAmmoTimer = t; markDirty(); } }
+
+    public int getBowgunWeight() { return bowgunWeight; }
+    public void setBowgunWeight(int w) { if (this.bowgunWeight != w) { this.bowgunWeight = w; markDirty(); } }
 }

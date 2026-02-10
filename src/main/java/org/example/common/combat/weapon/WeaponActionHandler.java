@@ -28,6 +28,8 @@ import org.example.registry.MHWeaponsItems;
 import org.example.common.combat.StaminaHelper;
 import org.example.common.config.MHWeaponsConfig;
 import org.example.registry.MHAttributes;
+import org.example.common.util.DebugLogger;
+import org.example.common.combat.bowgun.BowgunHandler;
 
 @SuppressWarnings("null")
 public final class WeaponActionHandler {
@@ -51,6 +53,9 @@ public final class WeaponActionHandler {
         if (player == null) {
             return;
         }
+        
+        DebugLogger.logInput("Action: {}, Pressed: {}, Input: ({}, {})", action, pressed, inputX, inputZ);
+
         PlayerWeaponState weaponState = CapabilityUtil.getPlayerWeaponState(player);
         PlayerCombatState combatState = CapabilityUtil.getPlayerCombatState(player);
         ItemStack stack = player.getMainHandItem();
@@ -105,12 +110,25 @@ public final class WeaponActionHandler {
             return;
         }
 
+        if (action == WeaponActionType.BOWGUN_AIM || action == WeaponActionType.BOWGUN_RELOAD) {
+            // Route bowgun-specific actions directly to BowgunHandler
+            if ("bowgun".equals(weaponId) && weaponState != null && combatState != null) {
+                BowgunHandler.handleAction(action, pressed, player, combatState, weaponState);
+                syncWeaponState(player, weaponState);
+            }
+            return;
+        }
+
         if (action == WeaponActionType.GUARD) {
             if (combatState != null) {
                 combatState.setGuardPointActive(pressed);
             }
             if (weaponState != null && "lance".equals(weaponId)) {
                 weaponState.setLanceGuardActive(pressed);
+            }
+            if (weaponState != null && "bowgun".equals(weaponId)) {
+                BowgunHandler.handleAction(action, pressed, player, combatState, weaponState);
+                syncWeaponState(player, weaponState);
             }
             return;
         }
@@ -132,6 +150,12 @@ public final class WeaponActionHandler {
         }
 
         if (action == WeaponActionType.CHARGE) {
+            // Bowgun uses CHARGE as fire button — bypass generic charge handling
+            if ("bowgun".equals(weaponId)) {
+                BowgunHandler.handleAction(action, pressed, player, combatState, weaponState);
+                syncWeaponState(player, weaponState);
+                return;
+            }
             handleCharge(action, pressed, player, combatState, weaponState);
             return;
         }
@@ -164,7 +188,10 @@ public final class WeaponActionHandler {
                 SwitchAxeHandler.handleAction(action, pressed, player, combatState, weaponState);
                 syncWeaponState(player, weaponState);
             }
-            case "charge_blade" -> handleChargeBlade(action, pressed, player, combatState, weaponState);
+            case "charge_blade" -> {
+                ChargeBladeHandler.handleAction(action, pressed, player, combatState, weaponState);
+                syncWeaponState(player, weaponState);
+            }
             case "insect_glaive" -> handleInsectGlaive(action, pressed, player, combatState, weaponState);
             case "tonfa" -> {
                 TonfaHandler.handle(player, action, pressed, combatState, weaponState);
@@ -173,6 +200,10 @@ public final class WeaponActionHandler {
             case "magnet_spike" -> MagnetSpikeHandler.handleAction(action, pressed, player, combatState, weaponState);
             case "accel_axe" -> handleAccelAxe(action, pressed, player, combatState, weaponState);
             case "bow" -> handleBow(action, pressed, combatState, weaponState);
+            case "bowgun" -> {
+                BowgunHandler.handleAction(action, pressed, player, combatState, weaponState);
+                syncWeaponState(player, weaponState);
+            }
             default -> {
             }
         }
@@ -507,31 +538,6 @@ public final class WeaponActionHandler {
                  syncWeaponState(player, weaponState);
                  return;
              }
-        }
-    }
-
-    private static void handleChargeBlade(WeaponActionType action, boolean pressed, Player player, PlayerCombatState combatState, PlayerWeaponState weaponState) {
-        if (!pressed) {
-            return;
-        }
-        if (action == WeaponActionType.WEAPON) {
-            weaponState.setChargeBladeSwordMode(!weaponState.isChargeBladeSwordMode());
-            setAction(combatState, "morph", 10);
-            return;
-        }
-        if (action == WeaponActionType.WEAPON_ALT) {
-            convertPhialCharge(weaponState);
-            setAction(combatState, "charge_phials", 10);
-            return;
-        }
-
-        if (action == WeaponActionType.SPECIAL) {
-            spendStamina(player, weaponState, 12.0f, 20);
-            if (weaponState.getChargeBladePhials() <= 0) {
-                return;
-            }
-            weaponState.setChargeBladePhials(0);
-            spendStamina(player, weaponState, 8.0f, 15);
         }
     }
 
@@ -1016,19 +1022,6 @@ public final class WeaponActionHandler {
     private static void setAction(PlayerCombatState combatState, String key, int ticks) {
         combatState.setActionKey(key);
         combatState.setActionKeyTicks(ticks);
-    }
-
-    private static void convertPhialCharge(PlayerWeaponState weaponState) {
-        int charge = weaponState.getChargeBladeCharge();
-        if (charge < 100) {
-            return;
-        }
-        int phials = weaponState.getChargeBladePhials();
-        if (phials >= 5) {
-            return;
-        }
-        weaponState.setChargeBladeCharge(charge - 100);
-        weaponState.setChargeBladePhials(phials + 1);
     }
 
     @SuppressWarnings("null")

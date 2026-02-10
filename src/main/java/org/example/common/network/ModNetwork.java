@@ -12,6 +12,8 @@ import org.example.common.network.packet.PlayAttackAnimationS2CPacket;
 import org.example.common.network.packet.PlayerWeaponStateS2CPacket;
 import org.example.common.network.packet.WeaponActionC2SPacket;
 import org.example.common.network.packet.WoundStateS2CPacket;
+import org.example.common.network.packet.AmmoSwitchC2SPacket;
+import org.example.common.network.packet.BowgunModSyncS2CPacket;
 
 public final class ModNetwork {
     private static final String PROTOCOL_VERSION = "1";
@@ -36,5 +38,7 @@ public final class ModNetwork {
         CHANNEL.registerMessage(index++, DamageNumberS2CPacket.class, DamageNumberS2CPacket::encode, DamageNumberS2CPacket::decode, DamageNumberS2CPacket::handle);
         CHANNEL.registerMessage(index++, WeaponActionC2SPacket.class, WeaponActionC2SPacket::encode, WeaponActionC2SPacket::decode, WeaponActionC2SPacket::handle);
         CHANNEL.registerMessage(index++, KinsectLaunchC2SPacket.class, KinsectLaunchC2SPacket::encode, KinsectLaunchC2SPacket::decode, KinsectLaunchC2SPacket::handle);
+        CHANNEL.registerMessage(index++, AmmoSwitchC2SPacket.class, AmmoSwitchC2SPacket::encode, AmmoSwitchC2SPacket::decode, AmmoSwitchC2SPacket::handle);
+        CHANNEL.registerMessage(index++, BowgunModSyncS2CPacket.class, BowgunModSyncS2CPacket::encode, BowgunModSyncS2CPacket::decode, BowgunModSyncS2CPacket::handle);
     }
 }

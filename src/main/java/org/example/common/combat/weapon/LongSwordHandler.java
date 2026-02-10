@@ -15,6 +15,7 @@ import org.example.common.data.WeaponDataResolver;
 import org.example.common.network.ModNetwork;
 import org.example.common.network.packet.PlayAttackAnimationS2CPacket;
 import org.example.registry.MHAttributes;
+import org.example.common.util.DebugLogger;
 
 @SuppressWarnings("null")
 public final class LongSwordHandler {
@@ -30,6 +31,7 @@ public final class LongSwordHandler {
     }
 
     private static void setAction(PlayerCombatState combatState, String key, int ticks) {
+        DebugLogger.logWeapon("LongSword Action: {}, Ticks: {}", key, ticks);
         combatState.setActionKey(key);
         combatState.setActionKeyTicks(ticks);
     }

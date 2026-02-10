@@ -11,6 +11,9 @@ public final class ClientOverlayEvents {
     @SubscribeEvent
     public static void onRegisterOverlays(RegisterGuiOverlaysEvent event) {
         event.registerAboveAll("mhweaponsmod_weapon_hud", WeaponHudOverlay.OVERLAY);
+        event.registerAboveAll("mhweaponsmod_ammo_select", (gui, guiGraphics, partialTick, width, height) -> {
+            AmmoSelectOverlay.render(guiGraphics, partialTick);
+        });
     }
 
     private ClientOverlayEvents() {

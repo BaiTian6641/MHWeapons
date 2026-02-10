@@ -1,0 +1,63 @@
+{
+    "weaponId": "bowgun",
+    "damageType": "SHOT",
+    "tier": "BLACK",
+    "baseDamage": 3,
+    "attackSpeed": -2.8,
+    "baseWeight": 40,
+    "defaultMode": 0,
+    "gaugeMax": 100.0,
+    "gaugeRegenPerTick": 0.25,
+    "gaugeRegenOnHit": 5.0,
+    "sharpnessEnabled": false,
+    "weightClasses": {
+        "light": { "min": 0, "max": 30 },
+        "medium": { "min": 31, "max": 60 },
+        "heavy": { "min": 61, "max": 100 }
+    },
+    "firingModes": {
+        "standard": {
+            "description": "Default firing mode. All weight classes.",
+            "gaugeRegen": true
+        },
+        "rapid": {
+            "description": "Light weight class. Rapid-fire burst with reduced per-hit damage.",
+            "gaugeCost": 20.0,
+            "minWeight": 0,
+            "maxWeight": 30
+        },
+        "versatile": {
+            "description": "Medium weight class. 2-round burst with moderate gauge cost.",
+            "gaugeCost": 15.0,
+            "minWeight": 31,
+            "maxWeight": 60
+        },
+        "ignition": {
+            "description": "Heavy weight class. Sustained fire or super ammo.",
+            "gaugeCostPerTick": 1.5,
+            "minWeight": 61,
+            "maxWeight": 100,
+            "types": ["wyvernheart", "wyvernpiercer", "wyverncounter", "wyvernblast"]
+        }
+    },
+    "focusBlasts": {
+        "eagle_strike": {
+            "weightClass": "light",
+            "gaugeCost": 30.0,
+            "damage": 16.0,
+            "description": "Precision long-range shot"
+        },
+        "hawk_barrage": {
+            "weightClass": "medium",
+            "gaugeCost": 30.0,
+            "damage": 8.0,
+            "description": "Multi-hit barrage"
+        },
+        "wyvern_howl": {
+            "weightClass": "heavy",
+            "gaugeCost": 30.0,
+            "damage": 25.0,
+            "description": "Devastating explosive blast"
+        }
+    }
+}

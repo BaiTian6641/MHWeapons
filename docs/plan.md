@@ -21,6 +21,10 @@ Steps:
 ## Implementation Phases - Mechanics
 
 ### Phase 1: Core Systems (Global Mechanics)
+- [x] **Debugging System**:
+  - `MHWeaponsConfig` debug flags.
+  - `DebugLogger` utility.
+  - Instrumentation in `WeaponActionHandler`.
 - [ ] **Damage Types**:
   - Implementation of `MHDamageType` Enum (Sever, Blunt, Shot).
   - `CombatReferee` event handler for `LivingHurtEvent` to simulate hitzones.

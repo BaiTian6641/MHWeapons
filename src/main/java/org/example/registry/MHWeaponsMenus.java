@@ -7,6 +7,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import org.example.MHWeaponsMod;
 import org.example.common.menu.DecorationWorkbenchMenu;
+import org.example.common.menu.BowgunWorkbenchMenu;
 
 public final class MHWeaponsMenus {
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(ForgeRegistries.MENU_TYPES, MHWeaponsMod.MODID);
@@ -14,6 +15,11 @@ public final class MHWeaponsMenus {
         public static final RegistryObject<MenuType<DecorationWorkbenchMenu>> DECORATION_WORKBENCH = MENUS.register(
             "decoration_workbench",
             () -> IForgeMenuType.create((id, inv, data) -> new DecorationWorkbenchMenu(id, inv))
+        );
+
+        public static final RegistryObject<MenuType<BowgunWorkbenchMenu>> BOWGUN_WORKBENCH = MENUS.register(
+            "bowgun_workbench",
+            () -> IForgeMenuType.create((id, inv, data) -> new BowgunWorkbenchMenu(id, inv))
         );
 
     private MHWeaponsMenus() {

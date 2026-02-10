@@ -1,6 +1,7 @@
 package org.example.client.input;
 
 import net.minecraft.client.KeyMapping;
+import com.mojang.blaze3d.platform.InputConstants;
 import org.lwjgl.glfw.GLFW;
 
 public final class ClientKeybinds {
@@ -23,6 +24,17 @@ public final class ClientKeybinds {
     public static final KeyMapping SHEATHE = new KeyMapping(
         "key.mhweaponsmod.sheathe",
         GLFW.GLFW_KEY_R,
+        CATEGORY
+    );
+    public static final KeyMapping BOWGUN_RELOAD = new KeyMapping(
+        "key.mhweaponsmod.bowgun_reload",
+        GLFW.GLFW_KEY_R,
+        CATEGORY
+    );
+    public static final KeyMapping BOWGUN_AIM = new KeyMapping(
+        "key.mhweaponsmod.bowgun_aim",
+        InputConstants.Type.MOUSE,
+        GLFW.GLFW_MOUSE_BUTTON_RIGHT,
         CATEGORY
     );
         public static final KeyMapping SPECIAL_ACTION = new KeyMapping(
@@ -50,6 +62,11 @@ public final class ClientKeybinds {
                     GLFW.GLFW_KEY_B,
             CATEGORY
         );
+    public static final KeyMapping AMMO_SELECT = new KeyMapping(
+            "key.mhweaponsmod.ammo_select",
+            GLFW.GLFW_KEY_TAB,
+            CATEGORY
+    );
 
     private ClientKeybinds() {
     }
