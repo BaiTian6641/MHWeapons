@@ -18,6 +18,11 @@ import org.example.common.util.CapabilityUtil;
 public final class TonfaHandler {
     private static final Logger LOGGER = LogManager.getLogger("MHWeaponsMod/Tonfa");
 
+    /** Maximum air actions (dashes/flurries) before forced descent. */
+    private static final int MAX_AIR_ACTIONS = 6;
+    /** Rhythm Gauge cost for Focus Strike (Pinpoint Drill), as a percentage (0-100). */
+    private static final float FOCUS_STRIKE_GAUGE_COST = 40.0f;
+
     private TonfaHandler() {
     }
 
@@ -72,11 +77,19 @@ public final class TonfaHandler {
             int comboActionTicks = WeaponDataResolver.resolveInt(player, null, "comboActionTicks", 12);
             
             // Focus Strike: Pinpoint Drill (Wilds Mechanic)
+            // Requires: Focus Mode + Wounded Target + Sufficient Gauge + Stamina
             if (combatState.isFocusMode() && focusEligible) {
+                 float gaugeRequired = FOCUS_STRIKE_GAUGE_COST;
+                 if (weaponState.getTonfaComboGauge() < gaugeRequired) {
+                     LOGGER.info("Tonfa Focus Strike denied: gauge {}/{}", weaponState.getTonfaComboGauge(), gaugeRequired);
+                     return;
+                 }
                  float staminaCost = StaminaHelper.applyCost(player, 10.0f);
                  if (weaponState.getStamina() >= staminaCost) {
                      weaponState.addStamina(-staminaCost);
                      weaponState.setStaminaRecoveryDelay(20);
+                     // Consume Rhythm Gauge
+                     weaponState.addTonfaComboGauge(-gaugeRequired);
                      setAction(combatState, "tonfa_drill", comboActionTicks);
                      
                      // Small forward lunge
@@ -89,10 +102,13 @@ public final class TonfaHandler {
 
             // Airborne Attacks
             if (!player.onGround() || weaponState.getTonfaFlyingTicks() > 0) {
-                // Short Mode Air: Basic slash or part of loop?
-                // Doc doesn't specify Left Click in air explicitly for Short Mode other than generic flying.
-                // We'll keep existing behavior for generic air hitting.
+                // Air action budget check
+                if (weaponState.getTonfaAirActionCount() >= MAX_AIR_ACTIONS) {
+                    LOGGER.info("Tonfa aerial attack denied: air action budget exhausted ({}/{})", weaponState.getTonfaAirActionCount(), MAX_AIR_ACTIONS);
+                    return;
+                }
                 setAction(combatState, "tonfa_air_slash", comboActionTicks);
+                weaponState.setTonfaAirActionCount(weaponState.getTonfaAirActionCount() + 1);
                
                 // Propel forward slightly
                 Vec3 forward = player.getLookAngle().normalize().scale(0.75);
@@ -103,14 +119,45 @@ public final class TonfaHandler {
 
             // Ground Attacks
             if (shortMode) {
-                // Short Mode Ground: Rising Smash (Launches player)
-                // Replaces the old 1-2-3 combo for Short Mode ground
-                setAction(combatState, "tonfa_short_rise", comboActionTicks);
-                
-                // Launch logic
-                // Delay launch slightly to match animation? For now, instant.
-                player.setDeltaMovement(player.getDeltaMovement().add(0, 0.8, 0));
-                player.hurtMarked = true;
+                // Short Mode Ground: Rising Smash (launcher) -> Short Combo chain
+                // First hit always launches. If already in short combo window, continue chain.
+                int window = comboWindow;
+                int lastEndTick = weaponState.getTonfaComboTick();
+                int current = weaponState.getTonfaComboIndex();
+
+                int next;
+                if (lastEndTick <= 0 || currentTick > (lastEndTick + window)) {
+                    next = 0; // Rising Smash (launcher)
+                } else if (currentTick < lastEndTick) {
+                    LOGGER.info("Tonfa short combo input ignored: too early (now={}, endTick={})", currentTick, lastEndTick);
+                    return;
+                } else {
+                    next = (current + 1) % 3;
+                }
+
+                weaponState.setTonfaComboIndex(next);
+
+                // EX Finisher at step 2 if gauge >= 95%
+                boolean triggerEx = next == 2 && weaponState.getTonfaComboGauge() >= 95.0f;
+
+                String actionKey;
+                if (next == 0) {
+                    // Rising Smash — launches player
+                    actionKey = "tonfa_short_rise";
+                    player.setDeltaMovement(player.getDeltaMovement().add(0, 0.8, 0));
+                    player.hurtMarked = true;
+                } else if (triggerEx) {
+                    actionKey = "tonfa_short_ex";
+                    spawnExParticles(player);
+                } else {
+                    actionKey = switch (next) {
+                        case 1 -> "tonfa_short_1";
+                        default -> "tonfa_short_2";
+                    };
+                }
+
+                setAction(combatState, actionKey, comboActionTicks);
+                weaponState.setTonfaComboTick(currentTick + comboActionTicks);
                 
             } else {
                 // Long Mode Ground: Standard 3-Hit Combo
@@ -164,9 +211,14 @@ public final class TonfaHandler {
         if (action == WeaponActionType.WEAPON_ALT) {
             if (shortMode) {
                 if (!player.onGround()) {
-                    // Aerial Flurry: Multi-hit rapid punches
+                    // Aerial Flurry: Multi-hit rapid punches (air action budget)
+                    if (weaponState.getTonfaAirActionCount() >= MAX_AIR_ACTIONS) {
+                        LOGGER.info("Tonfa aerial flurry denied: air action budget exhausted");
+                        return;
+                    }
                     setAction(combatState, "tonfa_short_flurry", 10);
-                    // Suspend gravity briefly?
+                    weaponState.setTonfaAirActionCount(weaponState.getTonfaAirActionCount() + 1);
+                    // Suspend gravity briefly
                     player.setDeltaMovement(player.getDeltaMovement().multiply(0.8, 0.5, 0.8));
                     player.hurtMarked = true;
                 } else {
@@ -192,6 +244,12 @@ public final class TonfaHandler {
 
         // Tonfa Mid-Air Air Dash (Jet Propulsion)
         if (!player.onGround()) {
+             // Air action budget check
+             if (weaponState.getTonfaAirActionCount() >= MAX_AIR_ACTIONS) {
+                 LOGGER.info("Tonfa air dash denied: air action budget exhausted ({}/{})", weaponState.getTonfaAirActionCount(), MAX_AIR_ACTIONS);
+                 return false;
+             }
+
              float cost = StaminaHelper.applyCost(player, 20.0f);
              if (weaponState.getStamina() >= cost) {
                  if (combatState != null) {
@@ -201,6 +259,7 @@ public final class TonfaHandler {
                  }
                  weaponState.addStamina(-cost);
                  weaponState.setStaminaRecoveryDelay(16);
+                 weaponState.setTonfaAirActionCount(weaponState.getTonfaAirActionCount() + 1);
                  
                  Vec3 dash = player.getLookAngle().normalize().scale(0.8);
                  // Cancel vertical momentum for a true dash feel
@@ -210,7 +269,7 @@ public final class TonfaHandler {
                  if (player.level() instanceof ServerLevel serverLevel) {
                      serverLevel.sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY() + 0.5, player.getZ(), 5, 0.2, 0.2, 0.2, 0.02);
                  }
-                 return true; // Use simple return true to indicate handled, though caller might need to return void/bool
+                 return true;
              }
         }
         return false; // let default dodge handle it
@@ -255,6 +314,37 @@ public final class TonfaHandler {
         if (combatState != null) {
             combatState.setActionKey(key);
             combatState.setActionKeyTicks(ticks);
+        }
+    }
+
+    /**
+     * Called every tick for a player holding Tonfa. Handles:
+     * - Air action counter reset on landing
+     * - Double jump reset on landing
+     * - Rhythm Gauge decay when not hitting
+     */
+    public static void tickTonfa(Player player, PlayerWeaponState weaponState) {
+        // Reset air state when grounded
+        if (player.onGround()) {
+            if (weaponState.getTonfaAirActionCount() > 0) {
+                weaponState.setTonfaAirActionCount(0);
+            }
+            if (weaponState.isTonfaDoubleJumped()) {
+                weaponState.setTonfaDoubleJumped(false);
+            }
+        }
+
+        // Rhythm Gauge decay: if no hit for 40+ ticks, decay 2/tick (configurable via data)
+        int currentTick = (int) player.level().getGameTime();
+        int lastHit = weaponState.getTonfaLastHitTick();
+        float gauge = weaponState.getTonfaComboGauge();
+        if (gauge > 0 && lastHit > 0) {
+            int ticksSince = currentTick - lastHit;
+            int decayDelay = WeaponDataResolver.resolveInt(player, null, "gaugeDecayDelay", 40);
+            if (ticksSince > decayDelay) {
+                float decayRate = 2.0f; // per tick
+                weaponState.addTonfaComboGauge(-decayRate);
+            }
         }
     }
     

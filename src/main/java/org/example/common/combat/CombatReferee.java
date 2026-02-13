@@ -319,16 +319,27 @@ public final class CombatReferee {
             if ("tonfa".equals(weaponIdProvider.getWeaponId())) {
                 PlayerWeaponState weaponState = CapabilityUtil.getPlayerWeaponState(player);
                 if (weaponState != null && weaponState.isTonfaShortMode()) {
+                    // Impact Conversion: Reversed Impact Mapping
+                    // In Short Mode, poor blunt zones become better and strong blunt zones are normalized.
+                    // This is NOT "use sever hitzone" — it's an inversion of the blunt effectiveness.
                     float blunt = resolveHitzoneMultiplierInternal(attacker, target, MHDamageType.BLUNT);
                     float sever = resolveHitzoneMultiplierInternal(attacker, target, MHDamageType.SEVER);
-                    float best = Math.max(blunt, sever);
 
-                    // Wilds Synergy: Wounded parts take massive burst damage from Short Mode logic
+                    // Reversed mapping: use the better of sever/blunt ratio, capped at 1.2x
+                    float conversionRatio = (blunt > 0.01f) ? Math.min(sever / blunt, 1.2f) : 1.0f;
+                    float converted = blunt * Math.max(conversionRatio, 1.0f);
+                    // Final cap to prevent invalidating sever weapons
+                    converted = Math.min(converted, 1.2f);
+
+                    // Wilds Synergy: Wounded parts resolve through wound-adjusted hitzone data
                     MobWoundState woundState = CapabilityUtil.getMobWoundState(target);
                     if (woundState != null && woundState.isWounded()) {
-                        best *= 1.25f; // "Massive burst potential" bonus
+                        // Wound-adjusted: use the wound system's hitzone boost instead of flat multiplier
+                        float woundedBlunt = resolveHitzoneMultiplierInternal(attacker, target, MHDamageType.BLUNT);
+                        float woundBonus = Math.min(woundedBlunt * 1.15f, 1.3f); // capped wound burst
+                        converted = Math.max(converted, woundBonus);
                     }
-                    return best;
+                    return converted;
                 }
             }
         }

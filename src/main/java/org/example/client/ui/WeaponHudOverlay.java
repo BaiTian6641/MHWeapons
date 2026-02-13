@@ -489,9 +489,53 @@ public final class WeaponHudOverlay {
                 guiGraphics.drawString(font, "Extracts: " + extracts, x, y - 1, 0xFFFFFF, true);
             }
             case "tonfa" -> {
-                drawGauge(guiGraphics, x, y, barWidth, barHeight, state.getTonfaComboGauge() / 100.0f, 0xFFAB47BC);
-                String mode = state.isTonfaShortMode() ? "Short" : "Long";
-                guiGraphics.drawString(font, "Mode: " + mode, x + barWidth + 6, y - 1, 0xFFFFFF, true);
+                float gauge = state.getTonfaComboGauge() / 100.0f;
+                boolean isShort = state.isTonfaShortMode();
+                boolean isExReady = state.getTonfaComboGauge() >= 95.0f;
+
+                // Mode-colored gauge: Red for Long (KO), Cyan for Short (like Magnet Spike)
+                int baseColor = isShort ? 0xFF26C6DA : 0xFFEF5350;
+
+                // EX state: flash gauge between gold and white
+                int gaugeColor;
+                if (isExReady) {
+                    long tick = System.currentTimeMillis() / 200; // ~5 Hz flash
+                    gaugeColor = (tick % 2 == 0) ? 0xFFFFD700 : 0xFFFFFFFF; // Gold / White
+                } else {
+                    gaugeColor = baseColor;
+                }
+
+                drawGauge(guiGraphics, x, y, barWidth, barHeight, gauge, gaugeColor);
+
+                // Mode label
+                String mode = isShort ? "Short Mode" : "Long Mode";
+                guiGraphics.drawString(font, mode, x + barWidth + 6, y - 1, baseColor, true);
+
+                // Row 2: Contextual indicators
+                int row2Y = y + 10;
+
+                // Air action counter (when airborne)
+                if (net.minecraft.client.Minecraft.getInstance().player != null
+                        && !net.minecraft.client.Minecraft.getInstance().player.onGround()) {
+                    int airCount = state.getTonfaAirActionCount();
+                    int maxAir = 6;
+                    int airColor = airCount >= maxAir ? 0xFFEF5350 : 0xFF80CBC4;
+                    guiGraphics.drawString(font, "Air [" + airCount + "/" + maxAir + "]", x, row2Y, airColor, true);
+                }
+
+                // EX Ready / Drill Ready contextual indicator (like Magnet Spike "PILE BUNKER READY!")
+                if (isExReady) {
+                    guiGraphics.drawString(font, "EX READY!", x + 60, row2Y, 0xFFFFD700, true);
+                } else if (state.getTonfaComboGauge() >= 40.0f) {
+                    guiGraphics.drawString(font, "Drill Ready", x + 60, row2Y, 0xFF80CBC4, true);
+                }
+
+                // Combo step display (Long Mode ground chain, like LS "Spirit Combo X/4")
+                if (!isShort) {
+                    int comboIdx = state.getTonfaComboIndex();
+                    int comboStep = comboIdx + 1;
+                    guiGraphics.drawString(font, "Combo " + comboStep + "/3", x + barWidth + 6, row2Y, 0xFFCCCCCC, true);
+                }
             }
             case "magnet_spike" -> {
                 int color = state.isMagnetSpikeImpactMode() ? 0xFFEF5350 : 0xFF26C6DA; // Red for Impact, Cyan for Cut
@@ -1364,7 +1408,16 @@ public final class WeaponHudOverlay {
             if (!player.onGround()) {
                 return "Aerial Slash";
             }
-            return "Rising Smash";
+            // Short Mode ground has a 3-step chain: Rising Smash -> Short 1 -> Short 2
+            if (reset) {
+                return "Rising Smash";
+            }
+            int idx = state.getTonfaComboIndex();
+            return switch (idx) {
+                case 1 -> "Short Combo (I)";
+                case 2 -> "Short Combo (II)";
+                default -> "Rising Smash";
+            };
         }
 
         if (reset) {

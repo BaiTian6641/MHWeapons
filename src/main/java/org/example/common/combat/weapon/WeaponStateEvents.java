@@ -641,13 +641,8 @@ public final class WeaponStateEvents {
             player.hurtMarked = true;
         }
 
-        if (state.getTonfaComboGauge() > 0.0f && player.tickCount % 4 == 0) {
-            state.addTonfaComboGauge(-0.2f);
-        }
-
-        if (player.onGround() && state.isTonfaDoubleJumped()) {
-            state.setTonfaDoubleJumped(false);
-        }
+        // Tonfa per-tick logic: gauge decay, air action reset, double jump reset
+        TonfaHandler.tickTonfa(player, state);
 
         if (state.getMagnetTargetTicks() > 0) {
             state.setMagnetTargetTicks(state.getMagnetTargetTicks() - 1);

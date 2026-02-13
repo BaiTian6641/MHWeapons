@@ -116,6 +116,8 @@ public final class PlayerWeaponState {
     private boolean tonfaDoubleJumped;
     private int tonfaComboIndex;
     private int tonfaComboTick;
+    private int tonfaAirActionCount;
+    private int tonfaLastHitTick;
 
     private boolean magnetSpikeImpactMode;
     private float magnetGauge;
@@ -1237,6 +1239,29 @@ public final class PlayerWeaponState {
         }
     }
 
+    public int getTonfaAirActionCount() {
+        return tonfaAirActionCount;
+    }
+
+    public void setTonfaAirActionCount(int tonfaAirActionCount) {
+        int clamped = Math.max(0, tonfaAirActionCount);
+        if (this.tonfaAirActionCount != clamped) {
+            this.tonfaAirActionCount = clamped;
+            markDirty();
+        }
+    }
+
+    public int getTonfaLastHitTick() {
+        return tonfaLastHitTick;
+    }
+
+    public void setTonfaLastHitTick(int tonfaLastHitTick) {
+        if (this.tonfaLastHitTick != tonfaLastHitTick) {
+            this.tonfaLastHitTick = tonfaLastHitTick;
+            markDirty();
+        }
+    }
+
     public boolean isMagnetSpikeImpactMode() {
         return magnetSpikeImpactMode;
     }
@@ -1525,6 +1550,8 @@ public final class PlayerWeaponState {
         tonfaDoubleJumped = other.tonfaDoubleJumped;
         tonfaComboIndex = other.tonfaComboIndex;
         tonfaComboTick = other.tonfaComboTick;
+        tonfaAirActionCount = other.tonfaAirActionCount;
+        tonfaLastHitTick = other.tonfaLastHitTick;
         magnetSpikeImpactMode = other.magnetSpikeImpactMode;
         magnetGauge = other.magnetGauge;
         magnetTargetId = other.magnetTargetId;
@@ -1667,6 +1694,8 @@ public final class PlayerWeaponState {
         tag.putBoolean("tonfaDoubleJumped", tonfaDoubleJumped);
         tag.putInt("tonfaComboIndex", tonfaComboIndex);
         tag.putInt("tonfaComboTick", tonfaComboTick);
+        tag.putInt("tonfaAirActionCount", tonfaAirActionCount);
+        tag.putInt("tonfaLastHitTick", tonfaLastHitTick);
         tag.putBoolean("magnetSpikeImpactMode", magnetSpikeImpactMode);
         tag.putFloat("magnetGauge", magnetGauge);
         tag.putInt("magnetTargetId", magnetTargetId);
@@ -1823,6 +1852,8 @@ public final class PlayerWeaponState {
         tonfaDoubleJumped = tag.getBoolean("tonfaDoubleJumped");
         tonfaComboIndex = tag.contains("tonfaComboIndex", Tag.TAG_INT) ? tag.getInt("tonfaComboIndex") : 0;
         tonfaComboTick = tag.contains("tonfaComboTick", Tag.TAG_INT) ? tag.getInt("tonfaComboTick") : 0;
+        tonfaAirActionCount = tag.contains("tonfaAirActionCount", Tag.TAG_INT) ? tag.getInt("tonfaAirActionCount") : 0;
+        tonfaLastHitTick = tag.contains("tonfaLastHitTick", Tag.TAG_INT) ? tag.getInt("tonfaLastHitTick") : 0;
         magnetSpikeImpactMode = tag.getBoolean("magnetSpikeImpactMode");
         magnetGauge = tag.getFloat("magnetGauge");
         magnetTargetId = tag.getInt("magnetTargetId");

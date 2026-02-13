@@ -6,6 +6,9 @@ A dual-wielded, variable-range impact weapon rooted in *Monster Hunter Frontier*
 **Wilds Modernization Concept:**
 In *Monster Hunter Wilds*, combat emphasizes "Focus Mode" (aiming/wounding) and "Offset Attacks" (counters). The Tonfa is modernized as a **close-quarters aerial skirmisher** that uses specific modes to either build Stun/KO (Long Mode) or exploit Wounds (Short Mode).
 
+**Scope Note:**
+Tonfa is a Frontier legacy weapon and not part of Wilds' base roster. This plan aligns it to Wilds-style systems already defined in this mod (`FocusMode`, `Wounds`, `Offset`) rather than attempting a 1:1 canon port.
+
 ---
 
 ## 1. Core Mechanics
@@ -26,9 +29,10 @@ The weapon operates in two distinct modes, toggled by the `Special Action` key (
 *   **Style**: Aerial, rapid-fire, linear thrusts.
 *   **Damage Profile**: Low Motion Values per hit, high frequency.
 *   **Status**: Excellent **Status Application** (Poison/Para/Sleep) due to high hit count. (Standard 1-in-3 application rule, but with 3x more hits).
-*   **Mechanic: Impact Conversion (Hitzone Reversal)**.
-    *   *Logic*: Deals `BLUNT` damage (KO), but calculates damage using the target's `SEVER` (cutting) hitzone if it is more vulnerable to cutting.
-    *   *Wilds Synergy*: If a part is **Wounded**, Short Mode's conversion logic automatically targets the wounded soft hitzone value, creating massive burst potential.
+*   **Mechanic: Impact Conversion (Reversed Impact Mapping)**.
+    *   *Logic*: Always deals `BLUNT` damage (keeps KO identity), but remaps impact effectiveness in Short Mode so poor blunt zones become better and strong blunt zones are normalized.
+    *   *Restriction*: No sever-only utility (no tail-cut behavior), and remap output should be capped (recommended final multiplier cap: `1.20x`).
+    *   *Wilds Synergy*: On **Wounded** parts, remap still resolves through wound-adjusted hitzone data from the global wound system for burst windows.
 *   **Offset Attack**: **Jet Counter**. An aerial evade that, if timed against a hitbox, triggers an explosive bounce-off.
 
 ### 1.2. The Rhythm Gauge (Senryu / Coming and Going)
@@ -44,6 +48,7 @@ Tonfas are equipped with piston-driven thrusters.
 *   **Double Jump**: Standard mid-air jump.
 *   **Air Dash (Evade)**: Directional dash in mid-air (costs Stamina).
 *   **Hover**: Holding `Jump` in air acts as a slow-fall/hover.
+*   **Drawn Guard/Step**: Short guard window and dash-step while weapon is drawn, preserving the Frontier identity in a Wilds-like defensive rhythm.
 
 ---
 
@@ -62,7 +67,8 @@ Tonfas are equipped with piston-driven thrusters.
 *   **Focus Strike: "Pinpoint Drill"**
     *   *Input*: `Attack` while focusing on a **Wound**.
     *   *Animation*: Player locks both Tonfas together, revs the thrusters, and drives them into the wound.
-    *   *Effect*: Deals massive tick damage (destroying sharpness). **Destroys the Wound** for a huge stagger/part break.
+    *   *Effect*: Deals rapid multi-hit burst, then **destroys the Wound** for a heavy stagger/part-break event.
+    *   *Cost*: Consumes Rhythm Gauge (recommended: 35-50%) so it is a committed finisher, not a spam tool.
 
 ### 2.3. Combo Path & Inputs
 
@@ -77,22 +83,28 @@ Tonfas are equipped with piston-driven thrusters.
     *   *Properties*: Huge KO value, Hyper Armor while charging. Best wake-up attack.
 
 #### **Aerial Combo (Short Mode)**
-The Tonfa is unique in its ability to stay airborne indefinitely by consuming Stamina.
+The Tonfa can stay airborne for extended periods, but should be bounded by stamina and action budgets to fit Wilds combat pacing.
 *   **Launcher**:
     *   **Rising Smash**: `Left Click` from ground. Launches player into air.
-*   **Aerial Infinite Loop**:
+*   **Aerial Pressure Loop**:
     1.  **Aerial Flurry (I)**: `Right Click` in air. Hits 3 times rapidly.
     2.  **Dash Cancel**: `Air Dash` (Space/Dodge + Direction). cancel the end lag of (I).
     3.  **Aerial Flurry (II)**: `Right Click` after Dash.
-    *   (Repeat I -> Dash -> II -> Dash until Stamina drains).
+    *   (Repeat while Stamina allows; recommended max `air_actions` budget before forced descent).
 *   **Finisher**:
     *   **Pile Bunker Dive**: `Left + Right` in air. Corkscrews down into the ground.
 
 ### 2.4. Offset Attacks (Clash/Counter)
 *   **Ground Offset (Reversal Smash)**:
-    *   Performing a *Concentrated Smash* right as a monster attacks will "clash", neutralizing damage and automatically performing a max-charge release.
+    *   Performing a *Concentrated Smash* right as a monster attacks triggers an **Offset**: neutralize damage, then release a boosted counter slam.
 *   **Aerial Offset (Jet Counter)**:
     *   Performing an *Air Dash* through an attack hitbox triggers an explosion, bouncing the player high up and refreshing air actions.
+
+### 2.5. Wilds Alignment Rules (for this mod)
+1.  **Focus first**: Pinpoint Drill should only reach full value against active wounds.
+2.  **Offset, not Power Clash**: Tonfa uses timing-based offsets; no Lance-style cinematic struggle.
+3.  **Burst windows**: Short Mode spikes during wounds; Long Mode remains main neutral/stun control.
+4.  **Aerial limits**: Air pressure is strong, but bounded by stamina + per-air-sequence action limits.
 
 ---
 
@@ -110,10 +122,10 @@ The implementation will likely extend `GeoWeaponItem` for animations.
     *   `boolean isFlying`
 *   **`TonfaCombatEvents`**:
     *   **Impulse Conversion**:
-        *   Hook into `LivingHurtEvent`.
+        *   Hook into shared combat resolution path (`CombatReferee`/damage resolver), not ad-hoc per-hit patches.
         *   If `mode == SHORT` or `target.hasWound()`:
             *   Get `Sever` Hitzone and `Blunt` Hitzone via `PartEntity`.
-            *   Calculate multiplier based on `Sever > Blunt` logic.
+            *   Calculate capped multiplier based on `Sever > Blunt` logic.
 *   **`TonfaPacketHandler`**:
     *   Syncs "Mode Switch" animations and "Jet Particle" events to clients.
 
@@ -127,11 +139,18 @@ The implementation will likely extend `GeoWeaponItem` for animations.
   "gauge": {
     "max_value": 100,
     "decay_rate": 2, // per tick
-    "damage_buff_max": 1.2
+        "damage_buff_max": 1.2,
+        "focus_strike_cost": 40
   },
   "flight": {
     "air_dash_stamina": 20,
-    "hover_gravity_mod": 0.1
+        "hover_gravity_mod": 0.1,
+        "max_air_actions": 6
+    },
+    "conversion": {
+        "enabled": true,
+        "max_multiplier": 1.2,
+        "wound_priority": true
   }
 }
 ```
@@ -161,6 +180,7 @@ The implementation will likely extend `GeoWeaponItem` for animations.
 
 *- Summary for Implementation -*
 **Prioritize**:
-1.  **Mode Switch**: Normal (Impact) vs Short (Hitzone optimization).
-2.  **Jet Movement**: Double jump and Air Dash.
-3.  **Gauge**: Simple fill-on-hit bar for damage multiplier.
+1.  **Mode Switch + Core Combo**: Normal (KO neutral) vs Short (wound-burst).
+2.  **Jet Movement with Limits**: Double jump/Air Dash + stamina/action budget guardrails.
+3.  **Gauge + Focus Strike Economy**: Fill/decay, buff scaling, and Drill cost.
+4.  **Offset Timing**: Reversal Smash + Jet Counter integrated into shared Offset framework.

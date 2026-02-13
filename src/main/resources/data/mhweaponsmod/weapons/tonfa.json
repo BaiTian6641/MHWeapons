@@ -7,6 +7,24 @@
   "comboWindowBufferTicks": 12,
   "chargeMaxTicks": 40,
   "baseDamage": 4.0,
+  "gaugeDecayDelay": 40,
+  "gauge": {
+    "max_value": 100,
+    "decay_rate": 2,
+    "damage_buff_max": 1.2,
+    "focus_strike_cost": 40,
+    "ex_threshold": 95
+  },
+  "flight": {
+    "air_dash_stamina": 20,
+    "hover_gravity_mod": 0.1,
+    "max_air_actions": 6
+  },
+  "conversion": {
+    "enabled": true,
+    "max_multiplier": 1.2,
+    "wound_priority": true
+  },
   "motionValues": {
     "basic_attack": 0.9,
     "tonfa_long": 1.0,
