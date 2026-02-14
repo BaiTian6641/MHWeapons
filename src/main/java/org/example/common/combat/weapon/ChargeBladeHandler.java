@@ -125,6 +125,11 @@ public final class ChargeBladeHandler {
                                             boolean swordMode) {
         if (!pressed) return;
 
+        // Block combo input during active animation
+        if (combatState.getActionKeyTicks() > 0) {
+            return;
+        }
+
         if (swordMode) {
             handleSwordCombo(player, combatState, state);
         } else {
@@ -178,6 +183,7 @@ public final class ChargeBladeHandler {
         state.setCbDischargeStage(0);
 
         setAction(combatState, actionKey, 10);
+        state.setCbComboTick(player.tickCount + 10);
         playAnimation(player, animKey, actionKey, 10);
     }
 
@@ -217,6 +223,7 @@ public final class ChargeBladeHandler {
         state.setCbDischargeStage(0);
 
         setAction(combatState, actionKey, 12);
+        state.setCbComboTick(player.tickCount + 12);
         playAnimation(player, animKey, actionKey, 12);
     }
 
@@ -263,6 +270,11 @@ public final class ChargeBladeHandler {
      * Stage 2 → AED or SAED (if shield charged, spends all phials)
      */
     private static void handleDischargeChain(Player player, PlayerCombatState combatState, PlayerWeaponState state) {
+        // Block discharge chain input during active animation
+        if (combatState.getActionKeyTicks() > 0) {
+            return;
+        }
+
         int stage = state.getCbDischargeStage();
 
         if (comboExpired(player, state)) {
@@ -307,7 +319,7 @@ public final class ChargeBladeHandler {
         player.push(look.x * 0.3, 0.0, look.z * 0.3);
 
         state.setCbDischargeStage(1);
-        state.setCbComboTick(player.tickCount);
+        state.setCbComboTick(player.tickCount + 12);
         setAction(combatState, "cb_element_discharge_1", 12);
         playAnimation(player, "bettercombat:two_handed_slash_horizontal_right", "cb_element_discharge_1", 12);
     }
@@ -333,7 +345,7 @@ public final class ChargeBladeHandler {
         }
 
         state.setCbDischargeStage(2);
-        state.setCbComboTick(player.tickCount);
+        state.setCbComboTick(player.tickCount + 14);
         setAction(combatState, "cb_element_discharge_2", 14);
         playAnimation(player, "bettercombat:two_handed_slash_horizontal_left", "cb_element_discharge_2", 14);
     }

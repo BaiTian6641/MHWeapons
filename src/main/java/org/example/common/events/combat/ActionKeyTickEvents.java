@@ -5,6 +5,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import org.example.common.capability.player.PlayerCombatState;
 import org.example.common.capability.player.PlayerWeaponState;
+import org.example.common.combat.weapon.HammerHandler;
 import org.example.common.compat.BetterCombatAnimationBridge;
 import org.example.common.network.ModNetwork;
 import org.example.common.network.packet.PlayerWeaponStateS2CPacket;
@@ -103,6 +104,42 @@ public final class ActionKeyTickEvents {
                 };
                 state.setActionKey(key);
                 state.setActionKeyTicks(2);
+            } else if (event.player.getMainHandItem().getItem() instanceof WeaponIdProvider weaponIdProvider
+                    && "hammer".equals(weaponIdProvider.getWeaponId())) {
+                // Drain stamina while charging (MH canon: charging expends stamina)
+                if (weaponState.getStamina() <= 0.0f) {
+                    // Out of stamina — force release
+                    weaponState.setChargingAttack(false);
+                    int chargeTicks = weaponState.getChargeAttackTicks();
+                    weaponState.setChargeAttackTicks(0);
+                    HammerHandler.handleChargeRelease(event.player,
+                            state, weaponState, chargeTicks, maxCharge);
+                    if (event.player instanceof ServerPlayer sp) {
+                        ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> sp),
+                                new PlayerWeaponStateS2CPacket(sp.getId(), weaponState.serializeNBT()));
+                        weaponState.clearDirty();
+                    }
+                    return;
+                }
+                weaponState.addStamina(-0.5f); // Slow drain: ~10 stamina per second
+                weaponState.setStaminaRecoveryDelay(10);
+
+                int stage = resolveHammerChargeStage(next, maxCharge);
+                String key = switch (stage) {
+                    case 1 -> "hammer_charge_1";
+                    case 2 -> "hammer_charge_2";
+                    case 3 -> "hammer_charge_3";
+                    default -> "charge_start";
+                };
+                state.setActionKey(key);
+                state.setActionKeyTicks(2);
+
+                // Sound cue on level transition
+                int prevStage = resolveHammerChargeStage(next - 1, maxCharge);
+                if (stage > prevStage && stage > 0 && event.player instanceof ServerPlayer sp) {
+                    float pitch = 0.8f + stage * 0.2f;
+                    sp.playNotifySound(net.minecraft.sounds.SoundEvents.EXPERIENCE_ORB_PICKUP, net.minecraft.sounds.SoundSource.PLAYERS, 0.6f, pitch);
+                }
             }
         }
     }
@@ -120,6 +157,14 @@ public final class ActionKeyTickEvents {
         if (chargeTicks >= (maxCharge / 3)) {
             return 1;
         }
+        return 0;
+    }
+
+    private static int resolveHammerChargeStage(int chargeTicks, int maxCharge) {
+        if (maxCharge <= 0) return 0;
+        if (chargeTicks >= maxCharge) return 3;
+        if (chargeTicks >= (maxCharge * 2 / 3)) return 2;
+        if (chargeTicks >= (maxCharge / 3)) return 1;
         return 0;
     }
 

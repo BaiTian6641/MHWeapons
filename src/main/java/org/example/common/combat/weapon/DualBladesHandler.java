@@ -141,15 +141,19 @@ public final class DualBladesHandler {
             return;
         }
 
+        // Block combo input during active animation
+        if (combatState.getActionKeyTicks() > 0) {
+            return;
+        }
+
         if (inDemon) {
             // Demon Mode: Demon Fangs -> Twofold Demon Slash -> Sixfold Demon Slash
+            int actionTicks = WeaponDataResolver.resolveInt(player, null, "comboActionTicks", 10);
             int lastTick = weaponState.getDbDemonComboTick();
             int current = weaponState.getDbDemonComboIndex();
             int comboIdx = (currentTick - lastTick) > comboWindow ? 0 : (current + 1) % 3;
             weaponState.setDbDemonComboIndex(comboIdx);
-            weaponState.setDbDemonComboTick(currentTick);
-
-            int actionTicks = WeaponDataResolver.resolveInt(player, null, "comboActionTicks", 10);
+            weaponState.setDbDemonComboTick(currentTick + actionTicks);
 
             String actionKey = switch (comboIdx) {
                 case 0 -> "db_demon_fangs";
@@ -166,13 +170,12 @@ public final class DualBladesHandler {
             LOGGER.debug("DB Demon combo: step={}, action={}", comboIdx, actionKey);
         } else if (inArch) {
             // Archdemon Mode: Enhanced normal attacks (faster, slightly stronger)
+            int actionTicks = WeaponDataResolver.resolveInt(player, null, "comboActionTicks", 10);
             int lastTick = weaponState.getDbComboTick();
             int current = weaponState.getDbComboIndex();
             int comboIdx = (currentTick - lastTick) > comboWindow ? 0 : (current + 1) % 3;
             weaponState.setDbComboIndex(comboIdx);
-            weaponState.setDbComboTick(currentTick);
-
-            int actionTicks = WeaponDataResolver.resolveInt(player, null, "comboActionTicks", 10);
+            weaponState.setDbComboTick(currentTick + actionTicks);
 
             String actionKey = switch (comboIdx) {
                 case 0 -> "db_arch_slash_1";
@@ -182,13 +185,12 @@ public final class DualBladesHandler {
             setAction(combatState, actionKey, actionTicks);
         } else {
             // Normal Mode: Double Slash -> Return Stroke -> Circle Slash
+            int actionTicks = WeaponDataResolver.resolveInt(player, null, "comboActionTicks", 12);
             int lastTick = weaponState.getDbComboTick();
             int current = weaponState.getDbComboIndex();
             int comboIdx = (currentTick - lastTick) > comboWindow ? 0 : (current + 1) % 3;
             weaponState.setDbComboIndex(comboIdx);
-            weaponState.setDbComboTick(currentTick);
-
-            int actionTicks = WeaponDataResolver.resolveInt(player, null, "comboActionTicks", 12);
+            weaponState.setDbComboTick(currentTick + actionTicks);
 
             String actionKey = switch (comboIdx) {
                 case 0 -> "db_double_slash";
@@ -204,6 +206,11 @@ public final class DualBladesHandler {
     private static void handleSecondaryAttack(Player player, PlayerCombatState combatState,
                                               PlayerWeaponState weaponState, boolean inDemon,
                                               boolean inArch, int comboWindow, int currentTick) {
+        // Block combo input during active animation
+        if (combatState.getActionKeyTicks() > 0) {
+            return;
+        }
+
         if (inDemon) {
             // Demon Mode: Blade Dance (3-stage lock-in combo)
             float staminaCost = StaminaHelper.applyCost(player, BLADE_DANCE_STAMINA_COST);
@@ -238,7 +245,7 @@ public final class DualBladesHandler {
             weaponState.setStaminaRecoveryDelay(20);
             weaponState.addDemonGauge(-BLADE_DANCE_GAUGE_COST);
             weaponState.setDbBladeDanceLockTicks(lockTicks);
-            weaponState.setDbDemonComboTick(currentTick);
+            weaponState.setDbDemonComboTick(currentTick + lockTicks);
             setAction(combatState, actionKey, lockTicks);
 
             LOGGER.debug("DB Blade Dance stage={}, lockTicks={}", stage, lockTicks);
@@ -267,7 +274,7 @@ public final class DualBladesHandler {
             float staminaCost = StaminaHelper.applyCost(player, DEMON_FLURRY_STAMINA_COST);
             weaponState.addStamina(-staminaCost);
             weaponState.setStaminaRecoveryDelay(16);
-            weaponState.setDbDemonComboTick(currentTick);
+            weaponState.setDbDemonComboTick(currentTick + actionTicks);
             setAction(combatState, actionKey, actionTicks);
 
             LOGGER.debug("DB Demon Flurry stage={}", stage);
@@ -288,7 +295,7 @@ public final class DualBladesHandler {
 
             weaponState.addStamina(-staminaCost);
             weaponState.setStaminaRecoveryDelay(16);
-            weaponState.setDbComboTick(currentTick);
+            weaponState.setDbComboTick(currentTick + actionTicks);
             setAction(combatState, actionKey, actionTicks);
 
             // Forward lunge

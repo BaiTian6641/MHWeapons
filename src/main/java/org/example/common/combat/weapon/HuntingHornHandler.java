@@ -408,6 +408,10 @@ public final class HuntingHornHandler {
         }
 
         // --- Standard note attack ---
+        // Block during active animation (combo branches like Hilt Stab and Flourish are handled above)
+        if (combatState.getActionKeyTicks() > 0) {
+            return;
+        }
         weaponState.addHornNote(note);
         String actionKey = noteActionKey(note);
         setAction(combatState, actionKey, NOTE_ACTION_TICKS);

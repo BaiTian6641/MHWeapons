@@ -316,15 +316,21 @@ public final class WeaponStateEvents {
         }
 
         if ("longsword".equals(weaponId)) {
-            // Combo Resets
+            // Combo Resets (comboTick stores animation-end time, so measure window from there)
             int comboTimeout = 100; // Increased window (5s) for more relaxed inputs
-            if (player.tickCount - state.getLongSwordSpiritComboTick() > comboTimeout) {
+            int spiritEndTick = state.getLongSwordSpiritComboTick();
+            if (spiritEndTick > 0 && player.tickCount > spiritEndTick
+                    && (player.tickCount - spiritEndTick) > comboTimeout) {
                 state.setLongSwordSpiritComboIndex(0);
             }
-            if (player.tickCount - state.getLongSwordOverheadComboTick() > comboTimeout) {
+            int overheadEndTick = state.getLongSwordOverheadComboTick();
+            if (overheadEndTick > 0 && player.tickCount > overheadEndTick
+                    && (player.tickCount - overheadEndTick) > comboTimeout) {
                 state.setLongSwordOverheadComboIndex(0);
             }
-            if (player.tickCount - state.getLongSwordThrustComboTick() > comboTimeout) {
+            int thrustEndTick = state.getLongSwordThrustComboTick();
+            if (thrustEndTick > 0 && player.tickCount > thrustEndTick
+                    && (player.tickCount - thrustEndTick) > comboTimeout) {
                 state.setLongSwordThrustComboIndex(0);
             }
 
@@ -387,6 +393,25 @@ public final class WeaponStateEvents {
             state.setHammerChargeTicks(state.getHammerChargeTicks() - 1);
         } else if (state.getHammerChargeLevel() > 0) {
             state.setHammerChargeLevel(0);
+        }
+
+        // Power Charge glow particles (every 10 ticks while active)
+        if ("hammer".equals(weaponId) && state.isHammerPowerCharge() && player.tickCount % 10 == 0) {
+            if (player.level() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+                serverLevel.sendParticles(net.minecraft.core.particles.ParticleTypes.FLAME,
+                        player.getX(), player.getY() + 1.0, player.getZ(),
+                        3, 0.25, 0.3, 0.25, 0.01);
+            }
+        }
+
+        // Decay Big Bang combo window (reset after ~40 ticks of no advancement)
+        if (state.getHammerBigBangStage() > 0 && state.getHammerBigBangTick() > 0) {
+            // We can't access player.tickCount here easily in a generic tick,
+            // so we use the hammerBigBangTick as a countdown instead.
+            state.setHammerBigBangTick(state.getHammerBigBangTick() - 1);
+            if (state.getHammerBigBangTick() <= 0) {
+                state.setHammerBigBangStage(0);
+            }
         }
 
         if (state.getGunlanceCooldown() > 0) {
@@ -641,8 +666,9 @@ public final class WeaponStateEvents {
             player.hurtMarked = true;
         }
 
-        // Tonfa per-tick logic: gauge decay, air action reset, double jump reset
-        TonfaHandler.tickTonfa(player, state);
+        // Tonfa per-tick logic: gauge decay, air action reset, double jump reset,
+        // and buffered combo consumption after animation end.
+        TonfaHandler.tickTonfa(player, combatState, state);
 
         if (state.getMagnetTargetTicks() > 0) {
             state.setMagnetTargetTicks(state.getMagnetTargetTicks() - 1);

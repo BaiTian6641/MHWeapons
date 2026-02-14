@@ -61,6 +61,24 @@ public final class WeaponActionHandler {
         String weaponId = weaponItem.getWeaponId();
 
         if (action == WeaponActionType.DODGE && pressed) {
+            // Hammer Charged Step: dodge while charging without losing charge
+            // (Canon: Special key, but also allow Dodge key as QoL)
+            if (weaponState != null && "hammer".equals(weaponId) && weaponState.isChargingAttack()) {
+                float cost = StaminaHelper.applyCost(player, 15.0f);
+                if (weaponState.getStamina() >= cost) {
+                    if (combatState != null) {
+                        combatState.setDodgeIFrameTicks(6);
+                        combatState.setActionKey("hammer_charged_step");
+                        combatState.setActionKeyTicks(6);
+                    }
+                    weaponState.addStamina(-cost);
+                    weaponState.setStaminaRecoveryDelay(16);
+                    Vec3 dash = player.getLookAngle().normalize().scale(0.45);
+                    player.setDeltaMovement(dash.x, player.getDeltaMovement().y + 0.05, dash.z);
+                    player.hurtMarked = true;
+                }
+                return;
+            }
             if (weaponState != null && "insect_glaive".equals(weaponId)
                     && weaponState.getInsectAerialTicks() > 0 && !player.onGround()) {
                 float cost = StaminaHelper.applyCost(player, 20.0f);
@@ -190,7 +208,10 @@ public final class WeaponActionHandler {
                 DualBladesHandler.handleAction(action, pressed, player, combatState, weaponState);
                 syncWeaponState(player, weaponState);
             }
-            case "hammer" -> handleHammer(action, pressed, combatState, weaponState);
+            case "hammer" -> {
+                HammerHandler.handleAction(action, pressed, player, combatState, weaponState);
+                syncWeaponState(player, weaponState);
+            }
             case "hunting_horn" -> HuntingHornHandler.handleAction(action, pressed, player, combatState, weaponState);
             case "lance" -> handleLance(action, pressed, player, combatState, weaponState);
             case "gunlance" -> handleGunlance(action, pressed, player, combatState, weaponState);
@@ -293,10 +314,7 @@ public final class WeaponActionHandler {
             boolean full = chargeTicks >= maxCharge;
             setAction(combatState, full ? "focus_strike" : "strong_charge", 12);
         } else if ("hammer".equals(weaponId)) {
-            int level = chargeTicks >= (maxCharge * 2 / 3) ? 3 : (chargeTicks >= (maxCharge / 3) ? 2 : 1);
-            weaponState.setHammerChargeLevel(level);
-            weaponState.setHammerChargeTicks(60);
-            setAction(combatState, "charge_lv" + level, 12);
+            HammerHandler.handleChargeRelease(player, combatState, weaponState, chargeTicks, maxCharge);
         } else if ("longsword".equals(weaponId)) {
             LongSwordHandler.handleChargeRelease(player, combatState, weaponState, chargeTicks, maxCharge);
         } else if ("magnet_spike".equals(weaponId)) {
@@ -397,29 +415,7 @@ public final class WeaponActionHandler {
 
     // Dual Blades: Logic moved to DualBladesHandler.java
 
-    private static void handleHammer(WeaponActionType action, boolean pressed, PlayerCombatState combatState, PlayerWeaponState weaponState) {
-        if (!pressed) {
-            return;
-        }
-        if (action == WeaponActionType.SPECIAL) {
-            weaponState.setHammerPowerCharge(!weaponState.isHammerPowerCharge());
-            setAction(combatState, "power_charge", 10);
-            return;
-        }
-        if (action == WeaponActionType.WEAPON) {
-            int next = weaponState.getHammerChargeLevel() + 1;
-            if (next > 3) {
-                next = 1;
-            }
-            weaponState.setHammerChargeLevel(next);
-            weaponState.setHammerChargeTicks(80);
-            setAction(combatState, "charge_lv" + next, 10);
-            return;
-        }
-        if (action == WeaponActionType.WEAPON_ALT) {
-            setAction(combatState, "golf_swing", 10);
-        }
-    }
+    // Hammer logic moved to HammerHandler.java
 
     // Hunting Horn logic moved to HuntingHornHandler.java
 
@@ -700,6 +696,10 @@ public final class WeaponActionHandler {
             }
 
             // Ground combo: Rising Slash → Reaping Slash → Double Slash (cycles 0→1→2→0)
+            // Block combo input during active animation
+            if (combatState.getActionKeyTicks() > 0) {
+                return;
+            }
             int window = WeaponDataResolver.resolveInt(player, null, "comboWindowTicks", 12);
             int lastTick = weaponState.getInsectComboTick();
             int current = weaponState.getInsectComboIndex();
@@ -707,7 +707,7 @@ public final class WeaponActionHandler {
 
             int next = withinWindow ? (current + 1) % 3 : 0;
             weaponState.setInsectComboIndex(next);
-            weaponState.setInsectComboTick(player.tickCount);
+            weaponState.setInsectComboTick(player.tickCount + 10);
             String actionKey = switch (next) {
                 case 0 -> "rising_slash";
                 case 1 -> "reaping_slash";

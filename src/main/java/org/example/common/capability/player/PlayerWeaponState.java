@@ -25,6 +25,10 @@ public final class PlayerWeaponState {
     private int hammerChargeLevel;
     private int hammerChargeTicks;
     private boolean hammerPowerCharge;
+    private int hammerComboIndex;
+    private int hammerComboTick;
+    private int hammerBigBangStage;
+    private int hammerBigBangTick;
 
     private int hornNoteA;
     private int hornNoteB;
@@ -118,6 +122,7 @@ public final class PlayerWeaponState {
     private int tonfaComboTick;
     private int tonfaAirActionCount;
     private int tonfaLastHitTick;
+    private int tonfaBufferedWeaponInputCount;
 
     private boolean magnetSpikeImpactMode;
     private float magnetGauge;
@@ -399,6 +404,18 @@ public final class PlayerWeaponState {
             markDirty();
         }
     }
+
+    public int getHammerComboIndex() { return hammerComboIndex; }
+    public void setHammerComboIndex(int v) { if (this.hammerComboIndex != v) { this.hammerComboIndex = v; markDirty(); } }
+
+    public int getHammerComboTick() { return hammerComboTick; }
+    public void setHammerComboTick(int v) { if (this.hammerComboTick != v) { this.hammerComboTick = v; markDirty(); } }
+
+    public int getHammerBigBangStage() { return hammerBigBangStage; }
+    public void setHammerBigBangStage(int v) { int c = Math.max(0, Math.min(5, v)); if (this.hammerBigBangStage != c) { this.hammerBigBangStage = c; markDirty(); } }
+
+    public int getHammerBigBangTick() { return hammerBigBangTick; }
+    public void setHammerBigBangTick(int v) { if (this.hammerBigBangTick != v) { this.hammerBigBangTick = v; markDirty(); } }
 
     public int getHornNoteA() {
         return hornNoteA;
@@ -1262,6 +1279,36 @@ public final class PlayerWeaponState {
         }
     }
 
+    public int getTonfaBufferedWeaponInputCount() {
+        return tonfaBufferedWeaponInputCount;
+    }
+
+    public void setTonfaBufferedWeaponInputCount(int tonfaBufferedWeaponInputCount) {
+        int clamped = Math.max(0, Math.min(2, tonfaBufferedWeaponInputCount));
+        if (this.tonfaBufferedWeaponInputCount != clamped) {
+            this.tonfaBufferedWeaponInputCount = clamped;
+            markDirty();
+        }
+    }
+
+    public void addTonfaBufferedWeaponInput(int delta) {
+        if (delta == 0) {
+            return;
+        }
+        setTonfaBufferedWeaponInputCount(tonfaBufferedWeaponInputCount + delta);
+    }
+
+    public boolean hasTonfaBufferedWeaponInput() {
+        return tonfaBufferedWeaponInputCount > 0;
+    }
+
+    public void consumeTonfaBufferedWeaponInput() {
+        if (tonfaBufferedWeaponInputCount > 0) {
+            tonfaBufferedWeaponInputCount--;
+            markDirty();
+        }
+    }
+
     public boolean isMagnetSpikeImpactMode() {
         return magnetSpikeImpactMode;
     }
@@ -1471,6 +1518,10 @@ public final class PlayerWeaponState {
         hammerChargeLevel = other.hammerChargeLevel;
         hammerChargeTicks = other.hammerChargeTicks;
         hammerPowerCharge = other.hammerPowerCharge;
+        hammerComboIndex = other.hammerComboIndex;
+        hammerComboTick = other.hammerComboTick;
+        hammerBigBangStage = other.hammerBigBangStage;
+        hammerBigBangTick = other.hammerBigBangTick;
         hornNoteA = other.hornNoteA;
         hornNoteB = other.hornNoteB;
         hornNoteC = other.hornNoteC;
@@ -1552,6 +1603,7 @@ public final class PlayerWeaponState {
         tonfaComboTick = other.tonfaComboTick;
         tonfaAirActionCount = other.tonfaAirActionCount;
         tonfaLastHitTick = other.tonfaLastHitTick;
+        tonfaBufferedWeaponInputCount = other.tonfaBufferedWeaponInputCount;
         magnetSpikeImpactMode = other.magnetSpikeImpactMode;
         magnetGauge = other.magnetGauge;
         magnetTargetId = other.magnetTargetId;
@@ -1615,6 +1667,10 @@ public final class PlayerWeaponState {
         tag.putInt("hammerChargeLevel", hammerChargeLevel);
         tag.putInt("hammerChargeTicks", hammerChargeTicks);
         tag.putBoolean("hammerPowerCharge", hammerPowerCharge);
+        tag.putInt("hammerComboIndex", hammerComboIndex);
+        tag.putInt("hammerComboTick", hammerComboTick);
+        tag.putInt("hammerBigBangStage", hammerBigBangStage);
+        tag.putInt("hammerBigBangTick", hammerBigBangTick);
         tag.putInt("hornNoteA", hornNoteA);
         tag.putInt("hornNoteB", hornNoteB);
         tag.putInt("hornNoteC", hornNoteC);
@@ -1696,6 +1752,7 @@ public final class PlayerWeaponState {
         tag.putInt("tonfaComboTick", tonfaComboTick);
         tag.putInt("tonfaAirActionCount", tonfaAirActionCount);
         tag.putInt("tonfaLastHitTick", tonfaLastHitTick);
+        tag.putInt("tonfaBufferedWeaponInputCount", tonfaBufferedWeaponInputCount);
         tag.putBoolean("magnetSpikeImpactMode", magnetSpikeImpactMode);
         tag.putFloat("magnetGauge", magnetGauge);
         tag.putInt("magnetTargetId", magnetTargetId);
@@ -1773,6 +1830,10 @@ public final class PlayerWeaponState {
         hammerChargeLevel = tag.getInt("hammerChargeLevel");
         hammerChargeTicks = tag.getInt("hammerChargeTicks");
         hammerPowerCharge = tag.getBoolean("hammerPowerCharge");
+        hammerComboIndex = tag.getInt("hammerComboIndex");
+        hammerComboTick = tag.getInt("hammerComboTick");
+        hammerBigBangStage = tag.getInt("hammerBigBangStage");
+        hammerBigBangTick = tag.getInt("hammerBigBangTick");
         hornNoteA = tag.getInt("hornNoteA");
         hornNoteB = tag.getInt("hornNoteB");
         hornNoteC = tag.getInt("hornNoteC");
@@ -1854,6 +1915,9 @@ public final class PlayerWeaponState {
         tonfaComboTick = tag.contains("tonfaComboTick", Tag.TAG_INT) ? tag.getInt("tonfaComboTick") : 0;
         tonfaAirActionCount = tag.contains("tonfaAirActionCount", Tag.TAG_INT) ? tag.getInt("tonfaAirActionCount") : 0;
         tonfaLastHitTick = tag.contains("tonfaLastHitTick", Tag.TAG_INT) ? tag.getInt("tonfaLastHitTick") : 0;
+        tonfaBufferedWeaponInputCount = tag.contains("tonfaBufferedWeaponInputCount", Tag.TAG_INT)
+            ? Math.max(0, Math.min(2, tag.getInt("tonfaBufferedWeaponInputCount")))
+            : (tag.getBoolean("tonfaBufferedWeaponInput") ? 1 : 0);
         magnetSpikeImpactMode = tag.getBoolean("magnetSpikeImpactMode");
         magnetGauge = tag.getFloat("magnetGauge");
         magnetTargetId = tag.getInt("magnetTargetId");

@@ -14,6 +14,7 @@ import org.example.common.capability.mob.MobWoundState;
 import org.example.common.combat.StaminaHelper;
 import org.example.common.data.WeaponDataResolver;
 import org.example.common.util.CapabilityUtil;
+import org.example.item.WeaponIdProvider;
 
 public final class TonfaHandler {
     private static final Logger LOGGER = LogManager.getLogger("MHWeaponsMod/Tonfa");
@@ -50,10 +51,20 @@ public final class TonfaHandler {
             action, pressed, shortMode, player.onGround(), currentAction, actionTicks, weaponState.getTonfaComboIndex(), weaponState.getTonfaComboTick(), currentTick, withinComboWindow);
 
         // Prevent input while an animation is active.
+        // For Tonfa combo actions, queue input and evaluate combo only after current animation finishes.
         if (actionTicks > 0) {
             boolean allowDrillOverride = action == WeaponActionType.WEAPON
                 && ("tonfa_drill".equals(currentAction) || "focus_strike".equals(currentAction))
                 && !focusEligible;
+            boolean shouldQueueComboInput = action == WeaponActionType.WEAPON
+                && isTonfaComboAction
+                && !allowDrillOverride;
+            if (shouldQueueComboInput) {
+                weaponState.addTonfaBufferedWeaponInput(1);
+                LOGGER.info("Tonfa combo input queued: actionTicks={}, currentAction={}, queued={}",
+                    actionTicks, currentAction, weaponState.getTonfaBufferedWeaponInputCount());
+                return;
+            }
             if (!allowDrillOverride) {
                 LOGGER.info("Tonfa input blocked: actionTicks={}, currentAction={}, shortMode={}, withinWindow={}",
                     actionTicks, currentAction, shortMode, withinComboWindow);
@@ -129,7 +140,9 @@ public final class TonfaHandler {
                 if (lastEndTick <= 0 || currentTick > (lastEndTick + window)) {
                     next = 0; // Rising Smash (launcher)
                 } else if (currentTick < lastEndTick) {
-                    LOGGER.info("Tonfa short combo input ignored: too early (now={}, endTick={})", currentTick, lastEndTick);
+                    weaponState.addTonfaBufferedWeaponInput(1);
+                    LOGGER.info("Tonfa short combo input queued (too early): now={}, endTick={}, queued={}",
+                        currentTick, lastEndTick, weaponState.getTonfaBufferedWeaponInputCount());
                     return;
                 } else {
                     next = (current + 1) % 3;
@@ -173,8 +186,9 @@ public final class TonfaHandler {
                 if (lastEndTick <= 0 || currentTick > (lastEndTick + window)) {
                     next = 0;
                 } else if (currentTick < lastEndTick) {
-                    // Too early (animation not finished yet)
-                    LOGGER.info("Tonfa combo input ignored: too early (now={}, endTick={})", currentTick, lastEndTick);
+                    weaponState.addTonfaBufferedWeaponInput(1);
+                    LOGGER.info("Tonfa combo input queued (too early): now={}, endTick={}, queued={}",
+                        currentTick, lastEndTick, weaponState.getTonfaBufferedWeaponInputCount());
                     return;
                 } else {
                     next = (current + 1) % 3;
@@ -323,7 +337,10 @@ public final class TonfaHandler {
      * - Double jump reset on landing
      * - Rhythm Gauge decay when not hitting
      */
-    public static void tickTonfa(Player player, PlayerWeaponState weaponState) {
+    public static void tickTonfa(Player player, PlayerCombatState combatState, PlayerWeaponState weaponState) {
+        boolean holdingTonfa = player.getMainHandItem().getItem() instanceof WeaponIdProvider weapon
+            && "tonfa".equals(weapon.getWeaponId());
+
         // Reset air state when grounded
         if (player.onGround()) {
             if (weaponState.getTonfaAirActionCount() > 0) {
@@ -345,6 +362,18 @@ public final class TonfaHandler {
                 float decayRate = 2.0f; // per tick
                 weaponState.addTonfaComboGauge(-decayRate);
             }
+        }
+
+        // Consume buffered combo input only after animation fully ends and scheduled combo end is reached.
+        if (holdingTonfa
+            && weaponState.hasTonfaBufferedWeaponInput()
+            && combatState != null
+            && combatState.getActionKeyTicks() <= 0
+            && currentTick >= weaponState.getTonfaComboTick()) {
+            weaponState.consumeTonfaBufferedWeaponInput();
+            LOGGER.info("Tonfa buffered combo consumed: prevAction={}, comboIndex={}, remaining={}",
+                combatState.getActionKey(), weaponState.getTonfaComboIndex(), weaponState.getTonfaBufferedWeaponInputCount());
+            handle(player, WeaponActionType.WEAPON, true, combatState, weaponState);
         }
     }
     

@@ -96,6 +96,22 @@ public final class CombatReferee {
                 }
             }
 
+            // Hammer Offset Uppercut counter: cancel incoming damage during charged upswing
+            if (player.getMainHandItem().getItem() instanceof org.example.item.WeaponIdProvider hamWeaponId
+                    && "hammer".equals(hamWeaponId.getWeaponId())) {
+                PlayerCombatState hamCombatState = CapabilityUtil.getPlayerCombatState(player);
+                if (hamCombatState != null && hamCombatState.getActionKeyTicks() > 0) {
+                    String hamAction = hamCombatState.getActionKey();
+                    // Offset: both standard Upswing and Charged Upswing can offset monster attacks
+                    if ("hammer_charged_upswing".equals(hamAction) || "hammer_upswing".equals(hamAction)) {
+                        event.setCanceled(true);
+                        hamCombatState.setActionKey("hammer_offset_uppercut");
+                        hamCombatState.setActionKeyTicks(10);
+                        return;
+                    }
+                }
+            }
+
             PlayerWeaponState weaponState = CapabilityUtil.getPlayerWeaponState(player);
             if (weaponState != null && weaponState.getHornDefenseLargeTicks() > 0) {
                 event.setAmount(event.getAmount() * 0.8f);
@@ -139,6 +155,14 @@ public final class CombatReferee {
                 event.setAmount(event.getAmount() * hornMult);
                 if (weaponState.getHornAffinityTicks() > 0 && player.getRandom().nextFloat() < 0.20f) {
                     event.setAmount(event.getAmount() * 1.25f);
+                }
+
+                // Hammer Power Charge buff
+                if (player.getMainHandItem().getItem() instanceof org.example.item.WeaponIdProvider hamWeaponId
+                        && "hammer".equals(hamWeaponId.getWeaponId())
+                        && weaponState.isHammerPowerCharge()) {
+                    float pcAtkMult = org.example.common.data.WeaponDataResolver.resolveFloat(player, null, "powerChargeBuff.attackMultiplier", 1.15f);
+                    event.setAmount(event.getAmount() * pcAtkMult);
                 }
             }
 

@@ -358,70 +358,16 @@ public final class ActionKeyEvents {
                 return;
             }
 
-            // Spirit blade chain advances even if an action key is already set for that chain
-                boolean spiritChain = currentAction == null
-                    || currentAction.startsWith("spirit_blade")
-                    || "spirit_roundslash".equals(currentAction);
-            if (spiritChain) {
-                int window = org.example.common.data.WeaponDataResolver.resolveInt(player, null, "comboWindowTicks", 24); // Increased base window
-                window = Math.max(window, 20); // ensure minimum
-                int lastTick = weaponState.getLongSwordSpiritComboTick();
-                int current = weaponState.getLongSwordSpiritComboIndex();
-                int next = (player.tickCount - lastTick) > window ? 0 : (current + 1) % 4;
-                weaponState.setLongSwordSpiritComboIndex(next);
-                weaponState.setLongSwordSpiritComboTick(player.tickCount);
-                if (next == 0) {
-                    weaponState.addSpiritGauge(-15.0f);
-                    state.setActionKey("spirit_blade_1");
-                    state.setActionKeyTicks(10);
-                } else if (next == 1) {
-                    weaponState.addSpiritGauge(-15.0f);
-                    state.setActionKey("spirit_blade_2");
-                    state.setActionKeyTicks(10);
-                } else if (next == 2) {
-                    weaponState.addSpiritGauge(-15.0f);
-                    state.setActionKey("spirit_blade_3");
-                    state.setActionKeyTicks(10);
-                } else {
-                    weaponState.addSpiritGauge(-25.0f);
-                    state.setActionKey("spirit_roundslash");
-                    state.setActionKeyTicks(20);
-                }
-
-                currentAction = state.getActionKey();
-                if ("spirit_roundslash".equals(currentAction)) {
-                    int nextLevel = Math.min(3, weaponState.getSpiritLevel() + 1);
-                    weaponState.setSpiritLevel(nextLevel);
-                    weaponState.setSpiritLevelTicks(resolveSpiritLevelMaxTicks(nextLevel));
-                    weaponState.setSpiritGauge(0.0f);
-                    if (nextLevel >= 3) {
-                        state.setDodgeIFrameTicks(8);
-                        weaponState.setSpiritLevelTicks(resolveSpiritLevelMaxTicks(3));
-                    }
-                    if (player.level() instanceof ServerLevel serverLevel && event.getTarget() instanceof LivingEntity target) {
-                        double radius = 6.0;
-                        AABB box = player.getBoundingBox().inflate(radius);
-                        double base = player.getAttributeValue(Attributes.ATTACK_DAMAGE);
-                        float sweepDamage = (float) Math.max(1.0, base * 0.6);
-                        for (LivingEntity entity : serverLevel.getEntitiesOfClass(LivingEntity.class, box, e -> e != player && e != target)) {
-                            entity.hurt(player.damageSources().playerAttack(player), sweepDamage);
-                        }
-                        double cx = player.getX();
-                        double cy = player.getY() + 1.0;
-                        double cz = player.getZ();
-                        int points = 20;
-                        double ring = 3.6;
-                        for (int i = 0; i < points; i++) {
-                            double angle = (Math.PI * 2.0 * i) / points;
-                            double px = cx + Math.cos(angle) * ring;
-                            double pz = cz + Math.sin(angle) * ring;
-                            serverLevel.sendParticles(ParticleTypes.SWEEP_ATTACK,
-                                    px, cy, pz, 1, 0.02, 0.02, 0.02, 0.0);
-                        }
-                        serverLevel.sendParticles(ParticleTypes.CRIT,
-                                cx, cy, cz, 24, 1.2, 0.2, 1.2, 0.02);
-                    }
-                }
+            // Spirit blade combo is handled exclusively by LongSwordHandler.handleChargeRelease
+            // (triggered via CHARGE packets). Cancel BC default hits during spirit actions to
+            // prevent double-damage and double-advancement of the combo.
+            if (currentAction != null && (currentAction.startsWith("spirit_blade")
+                    || "spirit_roundslash".equals(currentAction)
+                    || "spirit_charge".equals(currentAction)
+                    || "spinning_crimson_slash".equals(currentAction)
+                    || "spinning_crimson_ready".equals(currentAction)
+                    || "spirit_release_slash".equals(currentAction))) {
+                event.setCanceled(true);
                 return;
             }
 
@@ -449,7 +395,11 @@ public final class ActionKeyEvents {
                 && (state.getActionKey() == null
                     || "basic_attack".equals(state.getActionKey())
                     || (state.getActionKey() != null && state.getActionKey().startsWith("db_") && state.getActionKeyTicks() <= 0));
-        if (state.getActionKey() != null && !allowMagnetOverride && !allowDbOverride) {
+        boolean allowHammerOverride = "hammer".equals(weaponId)
+                && (state.getActionKey() == null
+                    || "basic_attack".equals(state.getActionKey())
+                    || (state.getActionKey() != null && state.getActionKey().startsWith("hammer_") && state.getActionKeyTicks() <= 0));
+        if (state.getActionKey() != null && !allowMagnetOverride && !allowDbOverride && !allowHammerOverride) {
             return;
         }
         if (weaponState != null && weaponItem != null) {
@@ -570,6 +520,96 @@ public final class ActionKeyEvents {
             if ("hunting_horn".equals(weaponId) && weaponState.getHornMelodyPlayTicks() > 0) {
                 state.setActionKey("stack_attack");
                 state.setActionKeyTicks(10);
+                return;
+            }
+            // Hammer combo progression — driven by AttackEntityEvent (like DB / Magnet Spike).
+            // LMB attacks go through Better Combat → AttackEntityEvent → combo tracked here.
+            if ("hammer".equals(weaponId)) {
+                String hammerAction = state.getActionKey();
+
+                // Animation lock with late-input buffer so follow-up hits can advance the combo
+                if (hammerAction != null && !"basic_attack".equals(hammerAction)
+                        && state.getActionKeyTicks() > 0) {
+                    int bufferTicks = Math.max(6,
+                            WeaponDataResolver.resolveInt(player, null, "comboWindowBufferTicks", 6));
+                    if (state.getActionKeyTicks() > Math.max(1, bufferTicks)) {
+                        return;
+                    }
+                }
+
+                // Focus Strike: Focus Mode + LMB → earthquake blow
+                if (state.isFocusMode()) {
+                    state.setActionKey("hammer_focus_blow_earthquake");
+                    state.setActionKeyTicks(18);
+                    return;
+                }
+
+                // Big Bang active — don't override, Big Bang advances only via C (SPECIAL)
+                if (weaponState.getHammerBigBangStage() > 0) {
+                    return;
+                }
+
+                // Charged Side Blow / Charged Upswing → follow-up chain
+                if ("hammer_charged_side_blow".equals(hammerAction)
+                        || "hammer_charged_upswing".equals(hammerAction)) {
+                    state.setActionKey("hammer_charged_follow_up");
+                    state.setActionKeyTicks(10);
+                    return;
+                }
+                // Charged Follow-up → Overhead Smash I (restart normal combo)
+                if ("hammer_charged_follow_up".equals(hammerAction)) {
+                    weaponState.setHammerComboIndex(0);
+                    weaponState.setHammerComboTick(player.tickCount);
+                    state.setActionKey("hammer_overhead_smash_1");
+                    state.setActionKeyTicks(10);
+                    return;
+                }
+
+                // Offset Uppercut follow-up → Spinslam
+                if ("hammer_offset_uppercut".equals(hammerAction)) {
+                    state.setActionKey("hammer_follow_up_spinslam");
+                    state.setActionKeyTicks(16);
+                    return;
+                }
+
+                // Spinning Bludgeon: LMB during spin advances spin combo
+                if (hammerAction != null && hammerAction.startsWith("hammer_spin")) {
+                    String[] spinCombo = {
+                        "hammer_spinning_bludgeon",
+                        "hammer_spin_side_smash",
+                        "hammer_spin_follow_up",
+                        "hammer_spin_strong_upswing"
+                    };
+                    for (int i = 0; i < spinCombo.length - 1; i++) {
+                        if (spinCombo[i].equals(hammerAction)) {
+                            int ticks = (i + 1 == spinCombo.length - 1) ? 14 : 10;
+                            state.setActionKey(spinCombo[i + 1]);
+                            state.setActionKeyTicks(ticks);
+                            return;
+                        }
+                    }
+                    state.setActionKey(spinCombo[spinCombo.length - 1]);
+                    state.setActionKeyTicks(14);
+                    return;
+                }
+
+                // Standard combo: Overhead Smash I → II → Upswing (loop)
+                int window = Math.max(40, WeaponDataResolver.resolveInt(player, null, "comboWindowTicks", 40));
+                int lastTick = weaponState.getHammerComboTick();
+                int current = weaponState.getHammerComboIndex();
+                int delta = player.tickCount - lastTick;
+                boolean timeout = lastTick <= 0 || delta < 0 || delta > window;
+                String[] standardCombo = {
+                    "hammer_overhead_smash_1",
+                    "hammer_overhead_smash_2",
+                    "hammer_upswing"
+                };
+                int next = timeout ? 0 : (current + 1) % standardCombo.length;
+                weaponState.setHammerComboIndex(next);
+                int actionTicks = (next == 2) ? 14 : 10; // Upswing slightly longer
+                weaponState.setHammerComboTick(player.tickCount);
+                state.setActionKey(standardCombo[next]);
+                state.setActionKeyTicks(actionTicks);
                 return;
             }
         }

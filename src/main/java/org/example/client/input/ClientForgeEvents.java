@@ -45,6 +45,10 @@ public final class ClientForgeEvents {
     private static int longSwordThrustComboTick;
     private static boolean longSwordHelmBreakerAltSent;
     private static int magnetChargeStage;
+    private static int hammerChargeStage;
+    private static boolean hammerRmbDown;
+    private static int hammerRmbHoldTicks;
+    private static boolean hammerChargeSent;
 
     private static boolean hornLeftDown;
     private static boolean hornRightDown;
@@ -155,7 +159,11 @@ public final class ClientForgeEvents {
 
         boolean altClick = ClientKeybinds.WEAPON_ACTION_ALT.consumeClick();
         if (altClick && !skipKeyboardWeaponActions && !isAnimating) {
-            ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON_ALT, true));
+            if ("hammer".equals(currentWeaponId)) {
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.SPECIAL, true));
+            } else {
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON_ALT, true));
+            }
             applyLongSwordActionHint(Minecraft.getInstance(), true);
         }
 
@@ -218,8 +226,10 @@ public final class ClientForgeEvents {
         boolean magnetChargeHold = "magnet_spike".equals(currentWeaponId)
                 && weaponState != null
                 && weaponState.isMagnetSpikeImpactMode();
+        // Hammer charges on RMB (not LMB) — LMB goes through Better Combat for combo
         boolean nowAttackDown = ("longsword".equals(currentWeaponId)
                 || "charge_blade".equals(currentWeaponId)
+            || "hammer".equals(currentWeaponId)
                 || magnetChargeHold)
             ? Minecraft.getInstance().mouseHandler.isLeftPressed()
             : Minecraft.getInstance().options.keyAttack.isDown();
@@ -247,6 +257,8 @@ public final class ClientForgeEvents {
         }
         // Bowgun RMB release tracking runs even during animation so we properly toggle ADS off
         handleBowgunInput(Minecraft.getInstance());
+        // Hammer RMB charge tracking — runs even during animation
+        handleHammerRmbInput(Minecraft.getInstance());
 
         if (("longsword".equals(currentWeaponId) || "charge_blade".equals(currentWeaponId)) && nowAttackDown) {
             Minecraft.getInstance().options.keyAttack.setDown(false);
@@ -254,8 +266,35 @@ public final class ClientForgeEvents {
         if (magnetChargeHold && nowAttackDown && (chargeSent || (weaponState != null && weaponState.isChargingAttack()))) {
             Minecraft.getInstance().options.keyAttack.setDown(false);
         }
+        // Hammer: suppress LMB from Better Combat while charging (RMB or LMB hold-charge)
+        if ("hammer".equals(currentWeaponId) && (chargeSent || hammerChargeSent || (weaponState != null && weaponState.isChargingAttack()))) {
+            Minecraft.getInstance().options.keyAttack.setDown(false);
+        }
 
-        if (nowAttackDown && isChargeWeapon(Minecraft.getInstance().player)) {
+        if ("hammer".equals(currentWeaponId) && nowAttackDown) {
+            attackHoldTicks++;
+            // While deciding tap-vs-hold, suppress Better Combat attack spam/conflict.
+            Minecraft.getInstance().options.keyAttack.setDown(false);
+            if (!chargeSent && !isAnimating && attackHoldTicks >= CHARGE_HOLD_TICKS) {
+                chargeSent = true;
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.CHARGE, true));
+            }
+            if (combatState != null && chargeSent) {
+                int maxCharge = WeaponDataResolver.resolveInt(localPlayer, null, "chargeMaxTicks", 40);
+                int stage = resolveHammerChargeStage(attackHoldTicks, maxCharge);
+                String key = switch (stage) {
+                    case 1 -> "hammer_charge_1";
+                    case 2 -> "hammer_charge_2";
+                    case 3 -> "hammer_charge_3";
+                    default -> "charge_start";
+                };
+                combatState.setActionKey(key);
+                combatState.setActionKeyTicks(2);
+            }
+            if (chargeSent) {
+                Minecraft.getInstance().options.keyAttack.setDown(false);
+            }
+        } else if (nowAttackDown && isChargeWeapon(Minecraft.getInstance().player)) {
             if ("charge_blade".equals(currentWeaponId)) {
                 // Charge Blade uses immediate LMB combo, no hold-to-charge on LMB
             } else if ("longsword".equals(currentWeaponId)) {
@@ -338,10 +377,10 @@ public final class ClientForgeEvents {
                 chargeSent = false;
                 } else if (attackHoldTicks > 0) {
                       if (!"insect_glaive".equals(currentWeaponId)
-                                 && !"longsword".equals(currentWeaponId)
-                                 && !"charge_blade".equals(currentWeaponId)
-                                 && !"bowgun".equals(currentWeaponId)
-                                 && !isAnimating) {
+                                     && !"longsword".equals(currentWeaponId)
+                                     && !"charge_blade".equals(currentWeaponId)
+                                     && !"bowgun".equals(currentWeaponId)
+                                     && !isAnimating) {
                       if ("tonfa".equals(currentWeaponId)) {
                          LOGGER.info("Tonfa LMB release -> send WEAPON (isAnimating={}, holdTicks={})", isAnimating, attackHoldTicks);
                       }
@@ -352,6 +391,7 @@ public final class ClientForgeEvents {
             }
             attackHoldTicks = 0;
             magnetChargeStage = 0;
+            hammerChargeStage = 0;
         }
 
         boolean guardPressed = ClientKeybinds.GUARD.isDown();
@@ -484,6 +524,12 @@ public final class ClientForgeEvents {
                 event.setCanceled(true);
                 return;
             }
+            if ("hammer".equals(weaponId)) {
+                // Hammer: RMB = Charge (hold to charge, release for charged attack)
+                // Actual charge tracking handled in handleHammerRmbInput()
+                event.setCanceled(true);
+                return;
+            }
             if ("charge_blade".equals(weaponId)) {
                 // RMB -> WEAPON_ALT for Charge Blade (Shield Thrust / Discharge chain)
                 ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.WEAPON_ALT, true));
@@ -606,6 +652,85 @@ public final class ClientForgeEvents {
         bowgunRmbDown = rmbDown;
     }
 
+    /**
+     * Track RMB hold/release for Hammer charge mechanic.
+     * Per official manual: RMB (BtnR2) = Hold to charge, release for charged attack.
+     * This replaces the old LMB charge path for hammer.
+     */
+    @SuppressWarnings("null")
+    private static void handleHammerRmbInput(Minecraft mc) {
+        if (mc == null || mc.player == null) {
+            hammerRmbDown = false;
+            hammerRmbHoldTicks = 0;
+            hammerChargeSent = false;
+            return;
+        }
+        if (!(mc.player.getMainHandItem().getItem() instanceof WeaponIdProvider weaponIdProvider)
+                || !"hammer".equals(weaponIdProvider.getWeaponId())) {
+            // Switched away from hammer while charging — release charge
+            if (hammerChargeSent) {
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.CHARGE, false));
+            }
+            hammerRmbDown = false;
+            hammerRmbHoldTicks = 0;
+            hammerChargeSent = false;
+            hammerChargeStage = 0;
+            return;
+        }
+
+        boolean rmbNow = mc.mouseHandler.isRightPressed();
+        PlayerCombatState combatState = CapabilityUtil.getPlayerCombatState(mc.player);
+
+        if (rmbNow) {
+            hammerRmbHoldTicks++;
+
+            // Send CHARGE(true) after hold threshold (prevents accidental tap from charging)
+            boolean isAnimating = org.example.common.compat.BetterCombatAnimationBridge.isAttackAnimationActive(mc.player);
+            if (!hammerChargeSent && !isAnimating && hammerRmbHoldTicks >= CHARGE_HOLD_TICKS) {
+                hammerChargeSent = true;
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.CHARGE, true));
+            }
+
+            // Client-side charge HUD and particles
+            if (combatState != null && hammerChargeSent) {
+                int maxCharge = WeaponDataResolver.resolveInt(mc.player, null, "chargeMaxTicks", 40);
+                int stage = resolveHammerChargeStage(hammerRmbHoldTicks, maxCharge);
+                String key = switch (stage) {
+                    case 1 -> "hammer_charge_1";
+                    case 2 -> "hammer_charge_2";
+                    case 3 -> "hammer_charge_3";
+                    default -> "charge_start";
+                };
+                combatState.setActionKey(key);
+                combatState.setActionKeyTicks(2);
+                if (stage != hammerChargeStage && mc.player.level() != null) {
+                    for (int i = 0; i < 4 + (stage * 2); i++) {
+                        double ox = (mc.player.getRandom().nextDouble() - 0.5) * 0.6;
+                        double oy = mc.player.getRandom().nextDouble() * 0.6 + 0.8;
+                        double oz = (mc.player.getRandom().nextDouble() - 0.5) * 0.6;
+                        mc.player.level().addParticle(ParticleTypes.CRIT,
+                                mc.player.getX() + ox, mc.player.getY() + oy, mc.player.getZ() + oz,
+                                0.0, 0.02, 0.0);
+                    }
+                    hammerChargeStage = stage;
+                }
+            }
+
+            // Suppress vanilla item-use while charging
+            mc.options.keyUse.setDown(false);
+        } else if (hammerRmbDown) {
+            // RMB released
+            if (hammerChargeSent) {
+                ModNetwork.CHANNEL.sendToServer(new WeaponActionC2SPacket(WeaponActionType.CHARGE, false));
+            }
+            hammerChargeSent = false;
+            hammerRmbHoldTicks = 0;
+            hammerChargeStage = 0;
+        }
+
+        hammerRmbDown = rmbNow;
+    }
+
 
     @SuppressWarnings("null")
     private static void applyLongSwordActionHint(Minecraft mc, boolean altAction) {
@@ -704,7 +829,7 @@ public final class ClientForgeEvents {
         }
         String weaponId = weaponIdProvider.getWeaponId();
         return "great_sword".equals(weaponId)
-                || "hammer".equals(weaponId)
+                // hammer charges on RMB via handleHammerRmbInput, not LMB
                 || "longsword".equals(weaponId)
                 || "lance".equals(weaponId)
                 || "gunlance".equals(weaponId)
@@ -747,6 +872,14 @@ public final class ClientForgeEvents {
         if (chargeTicks >= (maxCharge / 3)) {
             return 1;
         }
+        return 0;
+    }
+
+    private static int resolveHammerChargeStage(int chargeTicks, int maxCharge) {
+        if (maxCharge <= 0) return 0;
+        if (chargeTicks >= maxCharge) return 3;
+        if (chargeTicks >= (maxCharge * 2 / 3)) return 2;
+        if (chargeTicks >= (maxCharge / 3)) return 1;
         return 0;
     }
 

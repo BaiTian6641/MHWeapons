@@ -155,6 +155,88 @@ public final class BetterCombatAnimationBridge {
             return;
         }
 
+        // Hammer: drive LMB combo off Better Combat attack start so it advances on input (not hit-only)
+        if (weaponState != null && player.getMainHandItem().getItem() instanceof WeaponIdProvider weaponIdProvider
+                && "hammer".equals(weaponIdProvider.getWeaponId())) {
+            if (weaponState.isChargingAttack()) {
+                return;
+            }
+            if ("bettercombat:attack_start".equals(animationId)) {
+                return;
+            }
+
+            String current = state.getActionKey();
+            if (current != null && !current.isBlank() && state.getActionKeyTicks() > 0) {
+                int bufferTicks = Math.max(6,
+                        WeaponDataResolver.resolveInt(player, null, "comboWindowBufferTicks", 6));
+                if (state.getActionKeyTicks() > Math.max(1, bufferTicks)) {
+                    return;
+                }
+            }
+
+            // Charged Side Blow / Charged Upswing follow-up chain
+            if ("hammer_charged_side_blow".equals(current)
+                    || "hammer_charged_upswing".equals(current)) {
+                state.setActionKey("hammer_charged_follow_up");
+                state.setActionKeyTicks(10);
+                return;
+            }
+            if ("hammer_charged_follow_up".equals(current)) {
+                weaponState.setHammerComboIndex(0);
+                weaponState.setHammerComboTick(player.tickCount);
+                state.setActionKey("hammer_overhead_smash_1");
+                state.setActionKeyTicks(10);
+                return;
+            }
+
+            // Offset Uppercut follow-up
+            if ("hammer_offset_uppercut".equals(current)) {
+                state.setActionKey("hammer_follow_up_spinslam");
+                state.setActionKeyTicks(16);
+                return;
+            }
+
+            // Spinning Bludgeon chain: LMB during spin advances the sub-combo
+            if (current != null && current.startsWith("hammer_spin")) {
+                String[] spinCombo = {
+                    "hammer_spinning_bludgeon",
+                    "hammer_spin_side_smash",
+                    "hammer_spin_follow_up",
+                    "hammer_spin_strong_upswing"
+                };
+                for (int i = 0; i < spinCombo.length - 1; i++) {
+                    if (spinCombo[i].equals(current)) {
+                        int ticks = (i + 1 == spinCombo.length - 1) ? 14 : 10;
+                        state.setActionKey(spinCombo[i + 1]);
+                        state.setActionKeyTicks(ticks);
+                        return;
+                    }
+                }
+                state.setActionKey(spinCombo[spinCombo.length - 1]);
+                state.setActionKeyTicks(14);
+                return;
+            }
+
+            // Standard combo sequence
+            int window = Math.max(40, WeaponDataResolver.resolveInt(player, null, "comboWindowTicks", 40));
+            int lastTick = weaponState.getHammerComboTick();
+            int currentIndex = weaponState.getHammerComboIndex();
+            int delta = player.tickCount - lastTick;
+            boolean timeout = lastTick <= 0 || delta < 0 || delta > window;
+            String[] standardCombo = {
+                "hammer_overhead_smash_1",
+                "hammer_overhead_smash_2",
+                "hammer_upswing"
+            };
+            int next = timeout ? 0 : (currentIndex + 1) % standardCombo.length;
+            weaponState.setHammerComboIndex(next);
+            weaponState.setHammerComboTick(player.tickCount);
+            int actionTicks = (next == 2) ? 14 : 10;
+            state.setActionKey(standardCombo[next]);
+            state.setActionKeyTicks(actionTicks);
+            return;
+        }
+
         // Dual Blades: route LMB through combo system (like MagnetSpike)
         if (weaponState != null && player.getMainHandItem().getItem() instanceof WeaponIdProvider weaponIdProvider
                 && "dual_blades".equals(weaponIdProvider.getWeaponId())) {

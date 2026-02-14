@@ -133,6 +133,11 @@ public final class SwitchAxeHandler {
                                             boolean swordMode) {
         if (!pressed) return;
 
+        // Block combo input during active animation
+        if (combatState.getActionKeyTicks() > 0) {
+            return;
+        }
+
         if (swordMode) {
             handleSwordCombo(player, combatState, state);
         } else {
@@ -176,6 +181,7 @@ public final class SwitchAxeHandler {
             state.addSwitchAxeSwitchGauge(2.0f); // bonus in Power Axe
         }
         setAction(combatState, actionKey, 10);
+        state.setSwitchAxeComboTick(player.tickCount + 10);
         playAnimation(player, animKey);
     }
 
@@ -235,6 +241,7 @@ public final class SwitchAxeHandler {
         }
 
         setAction(combatState, actionKey, 10);
+        state.setSwitchAxeComboTick(player.tickCount + 10);
         playAnimation(player, animKey);
     }
 
@@ -272,7 +279,7 @@ public final class SwitchAxeHandler {
         playAnimation(player, "bettercombat:two_handed_slam_heavy");
         // Reset combo
         state.setSwitchAxeComboIndex(0);
-        state.setSwitchAxeComboTick(player.tickCount);
+        state.setSwitchAxeComboTick(player.tickCount + 14);
     }
 
     /**

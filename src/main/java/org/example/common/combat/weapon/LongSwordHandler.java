@@ -251,7 +251,14 @@ public final class LongSwordHandler {
             int window = 100; // Match extended combo window
             int lastTick = weaponState.getLongSwordSpiritComboTick();
             int current = weaponState.getLongSwordSpiritComboIndex();
-            boolean timeout = (player.tickCount - lastTick) > window;
+
+            // Block tap-combo during previous spirit blade animation
+            if (lastTick > 0 && player.tickCount < lastTick) {
+                weaponState.setLongSwordChargeReady(true);
+                return;
+            }
+
+            boolean timeout = lastTick <= 0 || (player.tickCount - lastTick) > window;
 
             int nextStep = timeout ? 0 : (current + 1);
             if (nextStep > 3) nextStep = 0;
@@ -260,8 +267,6 @@ public final class LongSwordHandler {
 
             if (weaponState.getSpiritGauge() >= cost) {
                 weaponState.addSpiritGauge(-cost);
-                weaponState.setLongSwordSpiritComboIndex(nextStep);
-                weaponState.setLongSwordSpiritComboTick(player.tickCount);
 
                 String actionKey = switch (nextStep) {
                     case 1 -> "spirit_blade_2";
@@ -271,6 +276,10 @@ public final class LongSwordHandler {
                 };
                 int actionTicks = actionKey.equals("spirit_roundslash") ? 20 : 12;
                 setAction(combatState, actionKey, actionTicks);
+
+                // Set combo state AFTER setAction so comboTick reflects animation end
+                weaponState.setLongSwordSpiritComboIndex(nextStep);
+                weaponState.setLongSwordSpiritComboTick(player.tickCount + actionTicks);
 
                 float mv = WeaponDataResolver.resolveMotionValue(player, actionKey, 1.0f);
                 if (nextStep == 3) {
@@ -299,13 +308,7 @@ public final class LongSwordHandler {
         // Charge Logic: Gauge is built dynamically in ActionKeyTickEvents
         // weaponState.addSpiritGauge(stage * 25.0f);
         
-        // Reset combo index if a full charge attack is used, or treat it as opening?
-        // Let's treat it as an opening if Charge is used, but if it ends in roundslash (stage 4) it levels up.
-        // If stage < 4, it shouldn't break the combo if we want to seamlessly mix them, 
-        // but traditionally charge is its own branch.
-        // For now, setting index to match the "Spirit Blade I/II/III" equivalence so next tap continues combo.
-        weaponState.setLongSwordSpiritComboIndex(stage >= 4 ? 3 : (stage - 1));
-        weaponState.setLongSwordSpiritComboTick(player.tickCount);
+        // Charge sets index to match the "Spirit Blade I/II/III" equivalence so next tap continues combo.
         String actionKey = switch (stage) {
             case 1 -> "spirit_blade_1";
             case 2 -> "spirit_blade_2";
@@ -314,6 +317,8 @@ public final class LongSwordHandler {
         };
         int actionTicks = actionKey.equals("spirit_roundslash") ? 20 : 10;
         setAction(combatState, actionKey, actionTicks);
+        weaponState.setLongSwordSpiritComboIndex(stage >= 4 ? 3 : (stage - 1));
+        weaponState.setLongSwordSpiritComboTick(player.tickCount + actionTicks);
 
         float motionValue = WeaponDataResolver.resolveMotionValue(player, actionKey, 1.0f);
         if (stage >= 4) {
@@ -455,13 +460,17 @@ public final class LongSwordHandler {
         // WEAPON_ALT (C) / RMB -> Overhead Slash Combo
         
         if (action == WeaponActionType.WEAPON) {
+            // Block combo input during active animation
+            if (combatState.getActionKeyTicks() > 0) {
+                return;
+            }
             weaponState.setLongSwordChargeReady(true);
             int window = WeaponDataResolver.resolveInt(player, null, "comboWindowTicks", 18);
             int lastTick = weaponState.getLongSwordThrustComboTick();
             int current = weaponState.getLongSwordThrustComboIndex();
             int next = (player.tickCount - lastTick) > window ? 0 : (current + 1) % 2;
             weaponState.setLongSwordThrustComboIndex(next);
-            weaponState.setLongSwordThrustComboTick(player.tickCount);
+            weaponState.setLongSwordThrustComboTick(player.tickCount + 12);
 
             if (next == 0) {
                 setAction(combatState, "thrust_rising_slash", 12);
@@ -542,13 +551,18 @@ public final class LongSwordHandler {
         }
 
         if (action == WeaponActionType.WEAPON_ALT) {
+            // Block combo input during active animation
+            if (combatState.getActionKeyTicks() > 0) {
+                return;
+            }
             weaponState.setLongSwordChargeReady(true);
             int window = WeaponDataResolver.resolveInt(player, null, "comboWindowTicks", 12);
             int lastTick = weaponState.getLongSwordOverheadComboTick();
             int current = weaponState.getLongSwordOverheadComboIndex();
             int next = (player.tickCount - lastTick) > window ? 0 : (current + 1) % 3;
+            int overheadActionTicks = (next == 2) ? 12 : 10;
             weaponState.setLongSwordOverheadComboIndex(next);
-            weaponState.setLongSwordOverheadComboTick(player.tickCount);
+            weaponState.setLongSwordOverheadComboTick(player.tickCount + overheadActionTicks);
             String animName;
             if (next == 0) {
                 animName = "overhead_slash";

@@ -11,6 +11,8 @@ import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TieredItem;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.example.client.input.FocusModeClient;
 import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 import org.example.client.input.ClientKeybinds;
@@ -32,6 +34,8 @@ import org.example.item.WeaponIdProvider;
 
 public final class WeaponHudOverlay {
     private static final int MAX_SHARPNESS = 100;
+    private static final Logger ATTACK_HUD_LOGGER = LogManager.getLogger("MHWeaponsMod/AttackHUD");
+    private static String lastAttackHudLog = "";
 
     public static final IGuiOverlay OVERLAY = (gui, guiGraphics, partialTick, width, height) -> {
         renderOverlay(guiGraphics, width, height);
@@ -406,6 +410,9 @@ public final class WeaponHudOverlay {
                 guiGraphics.drawString(font, "Charge Lv " + state.getHammerChargeLevel(), x, y - 1, 0xFFFFFF, true);
                 if (state.isHammerPowerCharge()) {
                     guiGraphics.drawString(font, "Power Charge", x + 80, y - 1, 0xFFEF6C00, true);
+                }
+                if (state.getHammerBigBangStage() > 0) {
+                    guiGraphics.drawString(font, "Big Bang " + state.getHammerBigBangStage() + "/5", x, y + 9, 0xFFFF5722, true);
                 }
             }
             case "hunting_horn" -> {
@@ -928,7 +935,7 @@ public final class WeaponHudOverlay {
 
     @SuppressWarnings("null")
     private static void renderAttackHud(GuiGraphics guiGraphics, Font font, int width, Player player, PlayerWeaponState state, PlayerCombatState combatState) {
-        int xRight = width - 10;
+        int xCenter = width / 2;
         int yTop = 10;
         String weaponKey = ClientKeybinds.WEAPON_ACTION.getTranslatedKeyMessage().getString();
         String altKey = ClientKeybinds.WEAPON_ACTION_ALT.getTranslatedKeyMessage().getString();
@@ -940,10 +947,21 @@ public final class WeaponHudOverlay {
         String specialLine = "Special: " + specialKey;
         String specialCombineLine = "Special Combine: Shift + " + specialKey;
         String altCombineLine = null;
+        String debugLine = null;
+        String debugWeaponId = "none";
         boolean followUpReady = false;
 
         if (player != null && state != null && player.getMainHandItem().getItem() instanceof WeaponIdProvider weaponIdProvider) {
             String weaponId = weaponIdProvider.getWeaponId();
+            debugWeaponId = weaponId;
+            if (combatState != null) {
+                String key = combatState.getActionKey();
+                int ticks = combatState.getActionKeyTicks();
+                debugLine = "[DBG] w=" + weaponId
+                        + " key=" + (key == null ? "-" : key)
+                        + " t=" + ticks
+                        + " focus=" + combatState.isFocusMode();
+            }
             if ("longsword".equals(weaponId)) {
                 boolean sheathe = state.isLongSwordSpecialSheathe();
                 String weaponAction = "Thrust + Rising Slash";
@@ -1000,6 +1018,22 @@ public final class WeaponHudOverlay {
                 specialLine = "Special: " + specialKey + " (" + (dbDemon ? "Exit" : "Enter") + " Demon Mode)";
                 specialCombineLine = "Focus+Attack: Turning Tide";
                 altCombineLine = null;
+            } else if ("hammer".equals(weaponId)) {
+                boolean powerCharged = state != null && state.isHammerPowerCharge();
+                int bbStage = state != null ? state.getHammerBigBangStage() : 0;
+                weaponLine = "Weapon: " + weaponKey + " (Overhead I > II > Upswing)";
+                altLine = "Alt: " + altKey + " (Spinning Bludgeon)";
+                specialLine = "Special: " + specialKey + " (" + (powerCharged ? "Big Bang" : "Big Bang") + ")";
+                if (bbStage > 0) {
+                    specialCombineLine = "Big Bang Stage " + bbStage + "/5 — press " + weaponKey + " or " + specialKey;
+                } else {
+                    specialCombineLine = "Hold RMB: Charge (Lvl 1/2/3) | " + specialKey + " while Charging: Power Charge";
+                }
+                if (powerCharged) {
+                    altCombineLine = "Power Charged! Lvl 3 = Mighty Charge Slam";
+                } else {
+                    altCombineLine = null;
+                }
             } else if ("gunlance".equals(weaponId)) {
                 weaponLine = "Weapon: RMB (Shelling | Hold: Charged | Shift: Wyrmstake)";
                 altLine = "Alt: " + altKey + " (Reload | Shift: Full Reload | Quick: after attack)";
@@ -1025,6 +1059,12 @@ public final class WeaponHudOverlay {
                     specialCombineLine = "Hold: " + weaponKey + " (Wild Swing)";
                 }
                 altCombineLine = null;
+            } else if ("tonfa".equals(weaponId) && combatState != null) {
+                int combo = state.getTonfaComboIndex();
+                int queued = state.getTonfaBufferedWeaponInputCount();
+                debugLine = (debugLine == null ? "[DBG] w=tonfa" : debugLine)
+                        + " c=" + combo
+                        + " q=" + queued;
             }
         }
 
@@ -1035,43 +1075,118 @@ public final class WeaponHudOverlay {
         if (altCombineLine != null) {
             hints.add(altCombineLine);
         }
-        if (followUpReady) {
-            hints.add("Follow-up Ready: Spirit Blade / Overhead / Crescent");
-        }
         hints.add("Dodge: " + ClientKeybinds.DODGE.getTranslatedKeyMessage().getString());
         hints.add("Guard: " + ClientKeybinds.GUARD.getTranslatedKeyMessage().getString());
 
-        int maxHintWidth = 0;
-        for (String hint : hints) {
-            maxHintWidth = Math.max(maxHintWidth, font.width(hint));
-        }
+        // Keep debug information in logs while rendering normal HUD on screen.
         String currentAction = resolveCurrentActionLabel(player, state, combatState);
-        int leftWidth = Math.max(font.width("Current"), font.width(currentAction));
-        int xLeft = Math.max(10, xRight - maxHintWidth - leftWidth - 24);
-        guiGraphics.drawString(font, "Current", xLeft, yTop, 0xFFFFFF, true);
-        int currentColor = "None".equals(currentAction) ? 0xBDBDBD : 0xE0E0E0;
-        guiGraphics.drawString(font, currentAction, xLeft, yTop + 10, currentColor, true);
+        List<String> logHints = new ArrayList<>(hints);
+        if (debugLine != null) {
+            logHints.add(debugLine);
+        }
+        logAttackHud(debugWeaponId, currentAction, logHints);
 
-        int y = yTop;
-        drawRightAligned(guiGraphics, font, xRight, y, "Actions", 0xFFFFFF);
+        // ── Top-center HUD: Current Action + Next Combo ──
+        int xCurrent = xCenter - (font.width("Current") / 2);
+        guiGraphics.drawString(font, "Current", xCurrent, yTop, 0xFFFFFF, true);
+        int currentColor;
+        if (currentAction.startsWith("\u2192")) {
+            currentColor = 0xFFD700; // Gold for combo follow-up
+        } else if (currentAction.contains("Guard")) {
+            currentColor = 0x64B5F6; // Light blue for guard
+        } else if ("None".equals(currentAction)) {
+            currentColor = 0xBDBDBD;
+        } else {
+            currentColor = 0xE0E0E0;
+        }
+        int xAction = xCenter - (font.width(currentAction) / 2);
+        guiGraphics.drawString(font, currentAction, xAction, yTop + 10, currentColor, true);
+
+        String upcomingComboDisplay = resolveUpcomingComboHint(player, state, combatState);
+        int yCenterExtra = yTop + 22;
+        if (upcomingComboDisplay != null && !upcomingComboDisplay.isBlank()) {
+            String nextLabel = "Next: " + upcomingComboDisplay;
+            int xNext = xCenter - (font.width(nextLabel) / 2);
+            guiGraphics.drawString(font, nextLabel, xNext, yCenterExtra, 0xFFD700, true);
+            yCenterExtra += 10;
+        }
+        if (followUpReady) {
+            String fuLabel = "Follow-up Ready: Spirit Blade / Overhead / Crescent";
+            int xFu = xCenter - (font.width(fuLabel) / 2);
+            guiGraphics.drawString(font, fuLabel, xFu, yCenterExtra, 0x7CFC00, true);
+        }
+
+        // ── Upper-right HUD: Weapon Keybind Hints ──
+        int xRight = width - 10;
+        int yRight = 10;
+        drawRightAligned(guiGraphics, font, xRight, yRight, "Actions", 0xFFFFFF);
         for (String hint : hints) {
-            y += 10;
-            drawRightAligned(guiGraphics, font, xRight, y, hint, 0xE0E0E0);
+            yRight += 10;
+            drawRightAligned(guiGraphics, font, xRight, yRight, hint, 0xE0E0E0);
         }
 
         if (player != null && state != null && player.getMainHandItem().getItem() instanceof WeaponIdProvider weaponIdProvider
                 && "hunting_horn".equals(weaponIdProvider.getWeaponId())) {
             String hint = buildHornMelodyHint(player, state);
             if (hint != null) {
-                y += 12;
-                drawRightAligned(guiGraphics, font, xRight, y, "Melody Hint:", 0xFFFFFF);
-                y += 10;
+                yRight += 12;
+                drawRightAligned(guiGraphics, font, xRight, yRight, "Melody Hint:", 0xFFFFFF);
+                yRight += 10;
                 for (String line : hint.split("\\n")) {
-                    drawRightAligned(guiGraphics, font, xRight, y, line, 0xBDBDBD);
-                    y += 10;
+                    drawRightAligned(guiGraphics, font, xRight, yRight, line, 0xBDBDBD);
+                    yRight += 10;
                 }
             }
         }
+    }
+
+    private static String resolveUpcomingComboHint(Player player, PlayerWeaponState state, PlayerCombatState combatState) {
+        if (player == null || state == null) {
+            return null;
+        }
+        if (!(player.getMainHandItem().getItem() instanceof WeaponIdProvider wp)) {
+            return null;
+        }
+        String weaponId = wp.getWeaponId();
+        String key = combatState != null ? combatState.getActionKey() : null;
+        int ticks = combatState != null ? combatState.getActionKeyTicks() : 0;
+
+        if (key != null && !key.isBlank() && ticks > 0) {
+            String next = switch (weaponId) {
+                case "longsword" -> switch (key) {
+                    case "spirit_blade_1" -> "Spirit Blade 2";
+                    case "spirit_blade_2" -> "Spirit Blade 3";
+                    case "spirit_blade_3" -> "Spirit Roundslash";
+                    case "overhead_slash" -> "Overhead Stab";
+                    case "overhead_stab" -> "Rising Slash";
+                    case "thrust_rising_slash" -> "Rising Slash";
+                    case "rising_slash" -> "Spirit Blade 1";
+                    default -> null;
+                };
+                case "hammer" -> switch (key) {
+                    case "hammer_overhead_smash_1" -> "Overhead Smash II";
+                    case "hammer_overhead_smash_2" -> "Upswing";
+                    case "hammer_upswing" -> "Overhead Smash I";
+                    case "hammer_charged_side_blow", "hammer_charged_upswing" -> "Charged Follow-up";
+                    case "hammer_charged_follow_up" -> "Overhead Smash I";
+                    case "hammer_spinning_bludgeon" -> "Spinning Side Smash";
+                    case "hammer_spin_side_smash" -> "Spinning Follow-up";
+                    case "hammer_spin_follow_up" -> "Spinning Strong Upswing";
+                    case "hammer_offset_uppercut" -> "Follow-up Spinslam";
+                    case "hammer_big_bang_1" -> "Big Bang II";
+                    case "hammer_big_bang_2" -> "Big Bang III";
+                    case "hammer_big_bang_3" -> "Big Bang IV";
+                    case "hammer_big_bang_4" -> "Big Bang Finisher";
+                    default -> null;
+                };
+                default -> null;
+            };
+            if (next != null && !next.isBlank()) {
+                return next;
+            }
+        }
+
+        return resolveComboFollowUp(player, state);
     }
 
     private static String resolveCurrentActionLabel(Player player, PlayerWeaponState state, PlayerCombatState combatState) {
@@ -1080,6 +1195,15 @@ public final class WeaponHudOverlay {
         }
         String key = combatState.getActionKey();
         if (key == null || key.isBlank() || combatState.getActionKeyTicks() <= 0) {
+            // Check if guard key is held
+            if (ClientKeybinds.GUARD.isDown()) {
+                return resolveGuardLabel(player, state);
+            }
+            // Check for combo follow-up hint
+            String followUp = resolveComboFollowUp(player, state);
+            if (followUp != null) {
+                return "\u2192 " + followUp;
+            }
             return "None";
         }
 
@@ -1112,17 +1236,26 @@ public final class WeaponHudOverlay {
                     case "spirit_blade_3": return "Spirit Blade 3";
                     case "spirit_roundslash": return "Spirit Roundslash";
                     case "overhead_slash": return "Overhead Slash";
-                    case "overhead_stab": return "Overhead Slash";
+                    case "overhead_stab": return "Overhead Stab";
                     case "crescent_slash": return "Crescent Slash";
                     case "spirit_thrust": return "Spirit Thrust";
                     case "rising_slash": return "Rising Slash";
                     case "spirit_helm_breaker": return "Spirit Helm Breaker";
+                    case "helm_breaker_followup": return "Helm Breaker Follow-up";
+                    case "spirit_helm_breaker_followup_left": return "Spirit Slash (Left)";
+                    case "spirit_helm_breaker_followup_right": return "Spirit Slash (Right)";
                     case "spirit_release_slash": return "Spirit Release Slash";
                     case "spirit_release_slash_left": return "Spirit Release Slash";
                     case "thrust_rising_slash": return "Thrust";
+                    case "thrust_rising_slash_2": return "Rising Slash";
                     case "special_sheathe": return "Special Sheathe";
                     case "fade_slash": return "Fade Slash";
                     case "iai_slash": return "Foresight Slash";
+                    case "iai_spirit_slash": return "Iai Spirit Slash";
+                    case "foresight_slash": return "Foresight Slash";
+                    case "spinning_crimson_slash": return "Spinning Crimson Slash";
+                    case "spinning_crimson_ready": return "Crimson Slash Ready";
+                    case "focus_strike": return "Focus Strike";
                     default: {
                         // fallthrough to charge/combo stage logic below
                     }
@@ -1220,6 +1353,7 @@ public final class WeaponHudOverlay {
                     case "tonfa_air_slash": return "Aerial Slash";
                     case "tonfa_air_slam": return "Aerial Slam";
                     case "tonfa_drill": return "Pinpoint Drill";
+                    case "tonfa_long_sweep": return "Wide Sweep";
                     case "basic_attack": return resolveTonfaBasicAttackLabel(player, state);
                     default: return null;
                 }
@@ -1378,6 +1512,120 @@ public final class WeaponHudOverlay {
                     default: return null;
                 }
             }
+            case "hunting_horn": {
+                switch (key) {
+                    case "note_one": return "Left Swing (Note 1)";
+                    case "note_two": return "Right Swing (Note 2)";
+                    case "note_three": return "Backwards Strike (Note 3)";
+                    case "hilt_stab": return "Hilt Stab";
+                    case "flourish": return "Flourish";
+                    case "recital": return "Perform";
+                    case "encore": return "Encore";
+                    case "echo_bubble": return "Echo Bubble";
+                    default: {
+                        if (key.startsWith("performance_beat")) {
+                            return "Performance Beat";
+                        }
+                        return null;
+                    }
+                }
+            }
+            case "greatsword": {
+                switch (key) {
+                    case "focus_strike": return "True Charged Slash";
+                    case "strong_charge": return "Strong Charged Slash";
+                    case "tackle": return "Tackle";
+                    case "charge_start": return "Charging Slash";
+                    case "basic_attack": return "Overhead Slash";
+                    default: return null;
+                }
+            }
+            case "hammer": {
+                switch (key) {
+                    // Standard combo
+                    case "hammer_overhead_smash_1": return "Overhead Smash I";
+                    case "hammer_overhead_smash_2": return "Overhead Smash II";
+                    case "hammer_upswing": return "Upswing";
+                    // Charged attacks
+                    case "hammer_charged_side_blow": return "Charged Side Blow";
+                    case "hammer_charged_upswing": return "Charged Upswing";
+                    case "hammer_charged_big_bang": return "Charged Big Bang";
+                    case "hammer_mighty_charge_slam": return "Mighty Charge Slam";
+                    case "hammer_aerial_spin": return "Aerial Spinning Bludgeon";
+                    case "hammer_charged_follow_up": return "Charged Follow-up";
+                    // Big Bang combo
+                    case "hammer_big_bang_1": return "Big Bang I";
+                    case "hammer_big_bang_2": return "Big Bang II";
+                    case "hammer_big_bang_3": return "Big Bang III";
+                    case "hammer_big_bang_4": return "Big Bang IV";
+                    case "hammer_big_bang_finisher": return "Big Bang Finisher";
+                    // Spinning Bludgeon
+                    case "hammer_spinning_bludgeon": return "Spinning Bludgeon";
+                    case "hammer_spin_side_smash": return "Spinning Side Smash";
+                    case "hammer_spin_follow_up": return "Spinning Follow-up";
+                    case "hammer_spin_strong_upswing": return "Spinning Strong Upswing";
+                    // Power Charge
+                    case "hammer_power_charge": return "Power Charge";
+                    // Charging (real-time)
+                    case "hammer_charge_1": return "Charging Lv1";
+                    case "hammer_charge_2": return "Charging Lv2";
+                    case "hammer_charge_3": return "Charging Lv3";
+                    // Focus
+                    case "hammer_focus_blow_earthquake": return "Focus Blow: Earthquake";
+                    case "hammer_keep_sway": return "Keep Sway";
+                    case "hammer_charged_step": return "Charged Step";
+                    case "hammer_offset_uppercut": return "Offset Uppercut";
+                    case "hammer_follow_up_spinslam": return "Follow-up Spinslam";
+                    case "hammer_mighty_charge": return "Mighty Charge";
+                    // Legacy / generic fallbacks
+                    case "charge_lv1": return "Charged Side Blow";
+                    case "charge_lv2": return "Charged Upswing";
+                    case "charge_lv3": return "Charged Big Bang";
+                    case "power_charge": return "Power Charge";
+                    case "golf_swing": return "Golf Swing";
+                    case "charge_start": return "Charging";
+                    case "basic_attack": return "Overhead Smash I";
+                    default: return null;
+                }
+            }
+            case "lance": {
+                switch (key) {
+                    case "charge_thrust": return "Charge Thrust";
+                    case "power_guard": return "Power Guard";
+                    case "guard_dash": return "Guard Dash";
+                    case "counter_thrust": return "Counter Thrust";
+                    case "charge_start": return "Charging";
+                    case "basic_attack": return "Mid Thrust";
+                    default: return null;
+                }
+            }
+            case "sword_and_shield": {
+                switch (key) {
+                    case "charged_slash": return "Charged Slash";
+                    case "backstep": return "Backstep";
+                    case "shield_bash": return "Shield Bash";
+                    case "perfect_rush": return "Perfect Rush";
+                    case "basic_attack": return "Chop";
+                    default: return null;
+                }
+            }
+            case "accel_axe": {
+                switch (key) {
+                    case "accel_charge": return "Accel Charged Slash";
+                    case "accel_parry": return "Accel Parry";
+                    case "grand_slam": return "Grand Slam";
+                    case "accel_dash": return "Accel Dash";
+                    case "basic_attack": return "Axe Slash";
+                    default: return null;
+                }
+            }
+            case "bow": {
+                switch (key) {
+                    case "bow_coating": return "Cycle Coating";
+                    case "basic_attack": return "Quick Shot";
+                    default: return null;
+                }
+            }
             default:
                 return null;
         }
@@ -1396,13 +1644,172 @@ public final class WeaponHudOverlay {
         };
     }
 
+    private static String resolveGuardLabel(Player player, PlayerWeaponState state) {
+        if (player == null || state == null) return "Guard";
+        if (!(player.getMainHandItem().getItem() instanceof WeaponIdProvider wp)) return "Guard";
+        String weaponId = wp.getWeaponId();
+        return switch (weaponId) {
+            case "lance" -> state.isLancePowerGuard() ? "Power Guard" : "Guard";
+            case "charge_blade" -> "Guard (CB)";
+            case "gunlance" -> "Guard (GL)";
+            case "sword_and_shield" -> "Guard (SnS)";
+            default -> "Guard";
+        };
+    }
+
+    private static String resolveComboFollowUp(Player player, PlayerWeaponState state) {
+        if (player == null || state == null) return null;
+        if (!(player.getMainHandItem().getItem() instanceof WeaponIdProvider wp)) return null;
+        String weaponId = wp.getWeaponId();
+        int currentTick = player.tickCount;
+        int window = WeaponDataResolver.resolveInt(player, null, "comboWindowTicks", 20);
+
+        return switch (weaponId) {
+            case "longsword" -> resolveLongSwordFollowUp(state, currentTick, window);
+            case "switch_axe" -> resolveSwitchAxeFollowUp(state, currentTick, window);
+            case "charge_blade" -> resolveChargeBladeFollowUp(state, currentTick, window);
+            case "dual_blades" -> resolveDualBladesFollowUp(state, currentTick, window);
+            case "insect_glaive" -> player.onGround() ? resolveInsectGlaiveFollowUp(state, currentTick, window) : null;
+            case "tonfa" -> player.onGround() ? resolveTonfaFollowUp(state, currentTick, window) : null;
+            default -> null;
+        };
+    }
+
+    private static String resolveLongSwordFollowUp(PlayerWeaponState state, int currentTick, int window) {
+        // Spirit combo (highest priority)
+        int spiritTick = state.getLongSwordSpiritComboTick();
+        if (spiritTick > 0 && currentTick >= spiritTick && (currentTick - spiritTick) <= window) {
+            int next = state.getLongSwordSpiritComboIndex() + 1;
+            if (next <= 3) {
+                return switch (next) {
+                    case 1 -> "Spirit Blade II";
+                    case 2 -> "Spirit Blade III";
+                    default -> "Spirit Roundslash";
+                };
+            }
+        }
+        // Overhead combo
+        int overheadTick = state.getLongSwordOverheadComboTick();
+        if (overheadTick > 0 && currentTick >= overheadTick && (currentTick - overheadTick) <= window) {
+            int next = (state.getLongSwordOverheadComboIndex() + 1) % 3;
+            return switch (next) {
+                case 0 -> "Overhead Slash";
+                case 1 -> "Overhead Stab";
+                default -> "Rising Slash";
+            };
+        }
+        // Thrust combo
+        int thrustTick = state.getLongSwordThrustComboTick();
+        if (thrustTick > 0 && currentTick >= thrustTick && (currentTick - thrustTick) <= window) {
+            int next = (state.getLongSwordThrustComboIndex() + 1) % 2;
+            return next == 0 ? "Thrust" : "Rising Slash";
+        }
+        return null;
+    }
+
+    private static String resolveSwitchAxeFollowUp(PlayerWeaponState state, int currentTick, int window) {
+        int tick = state.getSwitchAxeComboTick();
+        if (tick <= 0 || currentTick < tick || (currentTick - tick) > window) return null;
+        int next = (state.getSwitchAxeComboIndex() + 1) % 3;
+        if (state.isSwitchAxeSwordMode()) {
+            return switch (next) {
+                case 0 -> "Overhead Slash (Sword)";
+                case 1 -> "Double Slash (Sword)";
+                default -> "Rising Slash (Sword)";
+            };
+        }
+        return switch (next) {
+            case 0 -> "Overhead Slash (Axe)";
+            case 1 -> "Side Slash (Axe)";
+            default -> "Rising Slash (Axe)";
+        };
+    }
+
+    private static String resolveChargeBladeFollowUp(PlayerWeaponState state, int currentTick, int window) {
+        int tick = state.getCbComboTick();
+        if (tick <= 0 || currentTick < tick || (currentTick - tick) > window) return null;
+        if (state.isChargeBladeSwordMode()) {
+            int next = (state.getCbComboIndex() + 1) % 3;
+            return switch (next) {
+                case 0 -> "Sword: Weak Slash";
+                case 1 -> "Sword: Return Stroke";
+                default -> "Sword: Roundslash";
+            };
+        }
+        int next = (state.getCbComboIndex() + 1) % 2;
+        return next == 0 ? "Axe: Rising Slash" : "Axe: Overhead Slash";
+    }
+
+    private static String resolveDualBladesFollowUp(PlayerWeaponState state, int currentTick, int window) {
+        // Demon combo
+        if (state.isDemonMode()) {
+            int tick = state.getDbDemonComboTick();
+            if (tick > 0 && currentTick >= tick && (currentTick - tick) <= window) {
+                int next = (state.getDbDemonComboIndex() + 1) % 3;
+                return switch (next) {
+                    case 0 -> "Demon Fangs";
+                    case 1 -> "Twofold Demon Slash";
+                    default -> "Sixfold Demon Slash";
+                };
+            }
+        }
+        // Normal / Archdemon combo
+        int tick = state.getDbComboTick();
+        if (tick > 0 && currentTick >= tick && (currentTick - tick) <= window) {
+            int next = (state.getDbComboIndex() + 1) % 3;
+            if (state.isArchDemon()) {
+                return switch (next) {
+                    case 0 -> "Archdemon Slash I";
+                    case 1 -> "Archdemon Slash II";
+                    default -> "Archdemon Slash III";
+                };
+            }
+            return switch (next) {
+                case 0 -> "Double Slash";
+                case 1 -> "Return Stroke";
+                default -> "Circle Slash";
+            };
+        }
+        return null;
+    }
+
+    private static String resolveInsectGlaiveFollowUp(PlayerWeaponState state, int currentTick, int window) {
+        int tick = state.getInsectComboTick();
+        if (tick <= 0 || currentTick < tick || (currentTick - tick) > window) return null;
+        int next = (state.getInsectComboIndex() + 1) % 3;
+        return switch (next) {
+            case 0 -> "Rising Slash";
+            case 1 -> "Reaping Slash";
+            default -> "Double Slash";
+        };
+    }
+
+    private static String resolveTonfaFollowUp(PlayerWeaponState state, int currentTick, int window) {
+        int tick = state.getTonfaComboTick();
+        if (tick <= 0 || currentTick < tick || (currentTick - tick) > window) return null;
+        int next = (state.getTonfaComboIndex() + 1) % 3;
+        if (state.isTonfaShortMode()) {
+            return switch (next) {
+                case 0 -> "Rising Smash";
+                case 1 -> "Short Combo (I)";
+                default -> "Short Combo (II)";
+            };
+        }
+        return switch (next) {
+            case 0 -> "Thrust (I)";
+            case 1 -> "Kick & Swing (II)";
+            default -> "Uppercut (III)";
+        };
+    }
+
     private static String resolveTonfaBasicAttackLabel(Player player, PlayerWeaponState state) {
         if (player == null || state == null) {
             return "Attack";
         }
         int window = WeaponDataResolver.resolveInt(player, null, "comboWindowTicks", 40);
         int lastTick = state.getTonfaComboTick();
-        boolean reset = (player.tickCount - lastTick) > window;
+        int now = (int) player.level().getGameTime();
+        boolean reset = (now - lastTick) > window;
 
         if (state.isTonfaShortMode()) {
             if (!player.onGround()) {
@@ -1525,6 +1932,24 @@ public final class WeaponHudOverlay {
             }
         }
         return true;
+    }
+
+    private static void logAttackHud(String weaponId, String currentAction, List<String> hints) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("w=").append(weaponId == null ? "none" : weaponId)
+            .append(" current=").append(currentAction == null ? "None" : currentAction)
+            .append(" hints=");
+        for (int i = 0; i < hints.size(); i++) {
+            if (i > 0) {
+                sb.append(" | ");
+            }
+            sb.append(hints.get(i));
+        }
+        String line = sb.toString();
+        if (!line.equals(lastAttackHudLog)) {
+            lastAttackHudLog = line;
+            ATTACK_HUD_LOGGER.info("AttackHUD {}", line);
+        }
     }
 
     private static String patternLabel(int[] pattern) {
